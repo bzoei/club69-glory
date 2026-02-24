@@ -6,6 +6,8 @@
 <title>Clan Glory Manager · Survivor.io</title>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
 :root {
   --gold:#FFB800; --gold-light:#FFD54F; --gold-dark:#E65100;
@@ -24,7 +26,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 @keyframes popIn{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
 
 /* ── LOGIN ── */
-#login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:1000}
+#login-screen,#setup-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:1000}
 .login-box{background:var(--bg3);border:1px solid var(--border);border-top:3px solid var(--gold);border-radius:16px;padding:40px 36px;width:min(400px,90vw);text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6)}
 .login-logo{font-family:'Rajdhani',sans-serif;font-size:28px;font-weight:700;color:var(--gold);letter-spacing:2px;margin-bottom:4px}
 .login-sub{color:var(--muted);font-size:13px;margin-bottom:32px}
@@ -221,6 +223,21 @@ main{position:relative;z-index:1}
 </head>
 <body>
 
+<!-- SETUP — shown if no Firebase config stored -->
+<div id="setup-screen" style="display:none">
+  <div class="login-box" style="max-width:480px">
+    <div class="login-logo">⚙ SETUP</div>
+    <div class="login-sub">Connect to Firebase</div>
+    <div style="color:var(--muted);font-size:12px;text-align:left;margin-bottom:14px;line-height:1.6">
+      Paste your Firebase config JSON below. You can find this in your Firebase Console → Project Settings → General → Your apps → Web app → Config.<br><br>
+      <span style="color:var(--gold);font-size:11px">It looks like: {"apiKey":"...","authDomain":"...","projectId":"...",...}</span>
+    </div>
+    <textarea id="api-url-input" rows="6" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}' style="width:100%;background:var(--bg4);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Exo 2',monospace;font-size:12px;padding:10px 12px;outline:none;margin-bottom:8px;box-sizing:border-box;resize:vertical"></textarea>
+    <div class="login-err" id="setup-err"></div>
+    <button class="btn-gold" onclick="saveFirebaseConfig()">CONNECT</button>
+  </div>
+</div>
+
 <!-- LOGIN -->
 <div id="login-screen">
   <div class="login-box">
@@ -239,7 +256,10 @@ main{position:relative;z-index:1}
     <button class="nb on" id="nav-weekly" onclick="showPage('weekly')">WEEKLY</button>
     <button class="nb" id="nav-stats" onclick="showPage('stats')">STATISTICS</button>
   </nav>
-  <button class="logoutbtn" onclick="logout()">LOGOUT</button>
+  <div style="display:flex;gap:6px;align-items:center">
+    <button class="logoutbtn" onclick="showApiSetup()" title="Firebase settings" style="font-size:14px;padding:5px 8px">⚙</button>
+    <button class="logoutbtn" onclick="logout()">LOGOUT</button>
+  </div>
 </header>
 
 <main>
@@ -247,7 +267,7 @@ main{position:relative;z-index:1}
 <!-- ════════ WEEKLY ════════ -->
 <div class="page on" id="page-weekly">
   <div class="ptitle">Weekly <span>Glory</span> Selection</div>
-  <div class="pdesc">Upload screenshots for each fight (all scroll pages). The app reads text directly in your browser — completely free, no internet needed after load.</div>
+  <div class="pdesc">Upload screenshots for each fight (all scroll pages). OCR reads text in your browser. Data syncs via Firebase so your vice leader sees it too.</div>
 
   <div class="wbar">
     <div>
@@ -296,6 +316,34 @@ main{position:relative;z-index:1}
 
 <script>
 // ════════════════════════════════
+//  STORAGE — Firebase Firestore
+// ════════════════════════════════
+let db=null;
+const FB_CFG_KEY='g-firebase-cfg';
+
+function getFirebaseConfig(){
+  try{const s=localStorage.getItem(FB_CFG_KEY);return s?JSON.parse(s):null;}catch(e){return null;}
+}
+
+function initFirebase(cfg){
+  const app=firebase.initializeApp(cfg);
+  db=firebase.firestore(app);
+}
+
+async function fbGet(collection,docId){
+  const snap=await db.collection(collection).doc(docId).get();
+  return snap.exists?snap.data():null;
+}
+async function fbSet(collection,docId,data){
+  await db.collection(collection).doc(docId).set(data);
+}
+
+async function loadWeeks(){try{const d=await fbGet('glory','weeks');if(d&&d.list)weeks=d.list;}catch(e){console.warn('loadWeeks:',e);}}
+async function saveWeeks(){try{await fbSet('glory','weeks',{list:weeks});}catch(e){toast('Sync error — check connection','error');}}
+async function loadRoster(){try{const d=await fbGet('glory','roster');if(d&&d.names)roster=d.names;}catch(e){console.warn('loadRoster:',e);}}
+async function saveRoster(){try{await fbSet('glory','roster',{names:roster});}catch(e){toast('Sync error','error');}}
+
+// ════════════════════════════════
 //  AUTH — hash only, no plaintext
 // ════════════════════════════════
 const _SEED=['01','ac','e0','b9','d3','dd','26','5e','4d','89','1c','2c','78','f7','df','b4','9a','06','65','16','53','ba','4e','6c','2c','2d','a9','ee','8a','5e','f0','38'].join('');
@@ -304,13 +352,72 @@ async function sha256(s){
   const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
   return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
 }
-async function getStoredHash(){try{const r=await window.storage.get('g-auth');return r?r.value:null;}catch(e){return null;}}
-async function seedHash(){try{await window.storage.set('g-auth',_SEED);}catch(e){}}
+async function getStoredHash(){try{const d=await fbGet('glory','auth');return d?d.hash:null;}catch(e){return null;}}
+async function seedHash(){try{await fbSet('glory','auth',{hash:_SEED});}catch(e){}}
 
 async function checkSession(){
-  let h=await getStoredHash();if(!h){await seedHash();h=_SEED;}
+  // Show setup screen if no Firebase config stored
+  const cfg=getFirebaseConfig();
+  if(!cfg){
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('setup-screen').style.display='flex';
+    return;
+  }
+  try{initFirebase(cfg);}catch(e){
+    if(e.code==='app/duplicate-app') db=firebase.firestore();
+    else{document.getElementById('login-screen').style.display='none';document.getElementById('setup-screen').style.display='flex';return;}
+  }
+  // Firebase connected — hide setup, ensure login is visible
+  document.getElementById('setup-screen').style.display='none';
+
+  let h;
+  try{
+    h=await getStoredHash();
+    if(!h){await seedHash();h=_SEED;}
+  }catch(e){
+    // Firebase connection issue — show setup again
+    console.error('Firebase error:',e);
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('setup-screen').style.display='flex';
+    document.getElementById('setup-err').textContent='Could not connect to Firebase — check your config and Firestore rules';
+    return;
+  }
+
   const s=sessionStorage.getItem('gls');
-  if(s&&s===h.slice(0,16)){document.getElementById('login-screen').style.display='none';init();}
+  if(s&&s===h.slice(0,16)){
+    document.getElementById('login-screen').style.display='none';
+    init();
+  }else{
+    // No active session — show login screen
+    document.getElementById('login-screen').style.display='flex';
+  }
+}
+function saveFirebaseConfig(){
+  const raw=document.getElementById('api-url-input').value.trim();
+  if(!raw){document.getElementById('setup-err').textContent='Please paste your Firebase config';setTimeout(()=>document.getElementById('setup-err').textContent='',3000);return;}
+  try{
+    let cfg;
+    // Strip out any JS variable assignment wrapper
+    let clean=raw.replace(/^.*?firebaseConfig\s*=\s*/,'').replace(/;?\s*$/,'').trim();
+    // Try JSON first
+    try{cfg=JSON.parse(clean);}catch(_){
+      // Not valid JSON — likely JS object with unquoted keys
+      // Add quotes around unquoted keys: word: → "word":
+      clean=clean.replace(/([{,]\s*)(\w+)\s*:/g,'$1"$2":');
+      cfg=JSON.parse(clean);
+    }
+    if(!cfg.apiKey||!cfg.projectId)throw new Error('Missing apiKey or projectId');
+    localStorage.setItem(FB_CFG_KEY,JSON.stringify(cfg));
+    location.reload();
+  }catch(e){
+    document.getElementById('setup-err').textContent='Invalid config — paste the firebaseConfig from Firebase Console';
+    setTimeout(()=>document.getElementById('setup-err').textContent='',4000);
+  }
+}
+function showApiSetup(){
+  const cfg=getFirebaseConfig();
+  document.getElementById('api-url-input').value=cfg?JSON.stringify(cfg,null,2):'';
+  document.getElementById('setup-screen').style.display='flex';
 }
 async function doLogin(){
   const v=document.getElementById('pw-input').value;if(!v)return;
@@ -344,12 +451,8 @@ let roster=[]; // saved player names for fuzzy matching
 FIGHTS.forEach(f=>{fdata[f.id]={shots:[],parsed:[]};});
 
 // ════════════════════════════════
-//  STORAGE
+//  ROSTER LEARNING
 // ════════════════════════════════
-async function loadWeeks(){try{const r=await window.storage.get('g-weeks');if(r)weeks=JSON.parse(r.value)||[];}catch(e){}}
-async function saveWeeks(){try{await window.storage.set('g-weeks',JSON.stringify(weeks));}catch(e){toast('Storage error','error');}}
-async function loadRoster(){try{const r=await window.storage.get('g-roster');if(r)roster=JSON.parse(r.value)||[];}catch(e){}}
-async function saveRoster(){try{await window.storage.set('g-roster',JSON.stringify(roster));}catch(e){}}
 async function learnNames(names){
   let changed=false;
   names.forEach(name=>{
@@ -388,10 +491,12 @@ function fuzzyMatch(rawName){
 //  INIT / NAV
 // ════════════════════════════════
 async function init(){
+  toast('Syncing with Firebase…','info');
   await loadWeeks();
   await loadRoster();
   buildCards();
-  prewarmOCR(); // start loading engine in background immediately
+  prewarmOCR();
+  toast('✓ Data synced!','success');
 }
 function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
