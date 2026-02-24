@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clan Glory Manager · Survivor.io</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
+<style>
+:root {
+  --gold:#FFB800; --gold-light:#FFD54F; --gold-dark:#E65100;
+  --bg:#0a0c14; --bg3:#181c2e; --bg4:#1f2438;
+  --surface:#242840; --border:#3a3f5c;
+  --text:#e8ecf8; --muted:#7a80a0;
+  --accent:#6c63ff; --green:#4caf50; --red:#f44336;
+  --boss:#ce93d8; --clash:#ef9a9a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Exo 2',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:linear-gradient(rgba(108,99,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(108,99,255,.04) 1px,transparent 1px);
+  background-size:40px 40px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes popIn{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* ── LOGIN ── */
+#login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:1000}
+.login-box{background:var(--bg3);border:1px solid var(--border);border-top:3px solid var(--gold);border-radius:16px;padding:40px 36px;width:min(400px,90vw);text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.login-logo{font-family:'Rajdhani',sans-serif;font-size:28px;font-weight:700;color:var(--gold);letter-spacing:2px;margin-bottom:4px}
+.login-sub{color:var(--muted);font-size:13px;margin-bottom:32px}
+.login-box input{width:100%;background:var(--bg4);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:16px;padding:12px 16px;margin-bottom:16px;outline:none;transition:border-color .2s}
+.login-box input:focus{border-color:var(--gold)}
+.login-err{color:var(--red);font-size:13px;margin-bottom:12px;min-height:18px}
+.btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:#000;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;letter-spacing:1px;border:none;border-radius:8px;padding:12px 32px;cursor:pointer;width:100%;transition:opacity .2s,transform .1s}
+.btn-gold:hover{opacity:.9;transform:translateY(-1px)}
+
+/* ── HEADER ── */
+header{position:sticky;top:0;z-index:100;background:rgba(10,12,20,.96);border-bottom:1px solid var(--border);backdrop-filter:blur(12px);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:58px;gap:10px}
+.hlogo{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:18px;color:var(--gold);letter-spacing:2px;white-space:nowrap}
+.hlogo span{color:var(--muted);font-weight:400}
+nav{display:flex;gap:3px}
+.nb{background:none;border:none;color:var(--muted);font-family:'Exo 2',sans-serif;font-size:13px;font-weight:600;padding:7px 13px;border-radius:8px;cursor:pointer;transition:all .2s;white-space:nowrap}
+.nb:hover{color:var(--text);background:var(--surface)}
+.nb.on{color:var(--gold);background:rgba(255,184,0,.1)}
+.logoutbtn{background:none;border:1px solid var(--border);color:var(--muted);font-family:'Exo 2',sans-serif;font-size:12px;padding:5px 11px;border-radius:6px;cursor:pointer;transition:all .2s;white-space:nowrap}
+.logoutbtn:hover{border-color:var(--red);color:var(--red)}
+
+/* ── LAYOUT ── */
+main{position:relative;z-index:1}
+.page{display:none;padding:20px;max-width:1100px;margin:0 auto}
+.page.on{display:block}
+.ptitle{font-family:'Rajdhani',sans-serif;font-size:26px;font-weight:700;margin-bottom:4px}
+.ptitle span{color:var(--gold)}
+.pdesc{color:var(--muted);font-size:13px;margin-bottom:22px}
+
+/* ── WEEK BAR ── */
+.wbar{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px 20px;display:flex;align-items:flex-end;gap:14px;margin-bottom:22px;flex-wrap:wrap}
+.wbar label{font-size:12px;color:var(--muted);margin-bottom:5px;display:block;font-weight:600;letter-spacing:.5px}
+.wbar input{background:var(--bg4);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:14px;padding:8px 12px;outline:none;transition:border-color .2s;width:220px}
+.wbar input:focus{border-color:var(--gold)}
+.sp{flex:1}
+.btn-glory{background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:#000;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;letter-spacing:1px;border:none;border-radius:9px;padding:11px 26px;cursor:pointer;transition:opacity .2s,transform .1s;white-space:nowrap}
+.btn-glory:hover{opacity:.88;transform:translateY(-1px)}
+.btn-glory:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+/* ── FIGHT GRID ── */
+.fight-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:22px}
+.fcard{background:var(--bg3);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.fcard-head{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--border);background:var(--bg4)}
+.fbadge{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;letter-spacing:1px;padding:3px 10px;border-radius:20px}
+.boss-b{background:rgba(156,39,176,.2);color:var(--boss);border:1px solid rgba(156,39,176,.4)}
+.clash-b{background:rgba(192,57,43,.2);color:var(--clash);border:1px solid rgba(192,57,43,.4)}
+.ftitle{font-weight:600;font-size:14px;flex:1}
+.fcount{font-size:12px;color:var(--muted)}
+
+/* ── DROP ZONE ── */
+.dropzone{margin:14px;border:2px dashed var(--border);border-radius:8px;padding:20px 14px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg4);position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:80px}
+.dropzone:hover,.dropzone.over{border-color:var(--gold);background:rgba(255,184,0,.05)}
+.dropzone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.dzi{font-size:24px}
+.dzl{font-size:13px;color:var(--muted)}
+.dzl b{color:var(--gold)}
+
+/* ── THUMBS ── */
+.thumbs{display:flex;flex-wrap:wrap;gap:7px;padding:0 14px 8px;min-height:0}
+.thumb{position:relative;width:62px;height:110px;border-radius:6px;overflow:hidden;background:var(--bg4);border:1px solid var(--border);flex-shrink:0;cursor:pointer}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.xbtn{position:absolute;top:3px;right:3px;background:rgba(244,67,54,.85);border:none;color:#fff;font-size:10px;width:16px;height:16px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700}
+.sbadge{position:absolute;bottom:0;left:0;right:0;font-size:9px;font-weight:700;padding:2px 4px;text-align:center}
+.s-ok{background:rgba(76,175,80,.85);color:#fff}
+.s-pending{background:rgba(255,184,0,.85);color:#000}
+.s-err{background:rgba(244,67,54,.85);color:#fff}
+.s-scan{background:rgba(108,99,255,.85);color:#fff}
+
+/* ── LIGHTBOX ── */
+.lightbox{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.88);z-index:9999;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.lightbox.active{opacity:1;pointer-events:auto}
+.lightbox img{max-width:92vw;max-height:90vh;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.6)}
+.lightbox-close{position:absolute;top:12px;right:16px;background:rgba(255,255,255,.15);border:none;color:#fff;font-size:28px;width:40px;height:40px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
+.lightbox-close:hover{background:rgba(255,255,255,.3)}
+
+/* ── OCR SECTION ── */
+.ocr-prog-wrap{margin:0 14px 8px;background:var(--bg4);border-radius:6px;overflow:hidden;height:5px;display:none}
+.ocr-prog-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--gold));border-radius:6px;transition:width .25s}
+.review-panel{background:var(--bg4);border:1px solid var(--border);border-radius:8px;margin:0 14px 10px;padding:8px 10px;font-size:12px;max-height:220px;overflow-y:auto;display:none}
+.rv-hint{font-size:11px;color:var(--muted);padding:4px 2px 8px;border-bottom:1px solid rgba(58,63,92,.3);margin-bottom:4px}
+.rrow{display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid rgba(58,63,92,.2)}
+.rrow:last-child{border-bottom:none}
+.rname-input{flex:1;background:transparent;border:none;border-bottom:1px solid transparent;color:var(--text);font-family:'Exo 2',sans-serif;font-weight:600;font-size:13px;padding:2px 4px;outline:none;transition:border-color .15s,background .15s;border-radius:3px 3px 0 0;min-width:0}
+.rname-input:hover{border-bottom-color:var(--border)}
+.rname-input:focus{border-bottom-color:var(--gold);background:rgba(255,184,0,.05)}
+.rmed{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;color:var(--gold);min-width:54px;text-align:right;flex-shrink:0}
+.rmed.rz{color:var(--muted);opacity:.5}
+.rdel{background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0 2px;transition:color .15s;flex-shrink:0}
+.rdel:hover{color:var(--red)}
+.ocr-bar{padding:0 14px 14px}
+.ocrbtn{width:100%;background:linear-gradient(135deg,var(--accent),#3d35cc);color:#fff;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;letter-spacing:1px;border:none;border-radius:8px;padding:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .2s}
+.ocrbtn:hover{opacity:.88}
+.ocrbtn:disabled{opacity:.4;cursor:not-allowed}
+.spinner-el{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0}
+
+/* ── RESULTS ── */
+.res-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px}
+.res-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.res-title{font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;flex:1}
+.pill{background:var(--bg4);border:1px solid var(--border);border-radius:20px;font-size:12px;padding:3px 12px;color:var(--muted)}
+.pill b{color:var(--gold)}
+.tscroll{overflow-x:auto}
+.rtable{width:100%;border-collapse:collapse}
+.rtable thead th{background:var(--bg4);padding:9px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap}
+.rtable tbody tr{border-bottom:1px solid rgba(58,63,92,.35);transition:background .1s}
+.rtable tbody tr:hover{background:var(--bg4)}
+.rtable tbody tr:last-child{border-bottom:none}
+.rtable td{padding:9px 14px;font-size:14px}
+.rk{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;color:var(--muted);width:44px}
+.rk.r1{color:#FFD700}.rk.r2{color:#C0C0C0}.rk.r3{color:#CD7F32}
+.mg{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;color:var(--gold)}
+.pbar{height:4px;background:var(--bg4);border-radius:2px;margin-top:5px;width:70px}
+.pbar-f{height:100%;border-radius:2px;background:var(--green)}
+.kflag{background:rgba(244,67,54,.15);border:1px solid rgba(244,67,54,.3);color:var(--red);font-size:10px;padding:2px 7px;border-radius:4px;font-weight:700}
+.minput{width:70px;background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;padding:5px 8px;outline:none;text-align:right;transition:border-color .2s}
+.minput:focus{border-color:var(--gold)}
+
+/* ── GLORY ── */
+.glory-sec{background:linear-gradient(135deg,rgba(255,184,0,.07),rgba(108,99,255,.05));border:1px solid rgba(255,184,0,.3);border-radius:12px;padding:22px;margin-bottom:20px}
+.glory-title{font-family:'Rajdhani',sans-serif;font-size:21px;font-weight:700;color:var(--gold);margin-bottom:3px}
+.glory-sub{color:var(--muted);font-size:13px;margin-bottom:18px}
+.gwinners{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+.gcard{background:var(--bg4);border:1px solid rgba(255,184,0,.35);border-radius:12px;padding:16px 18px;flex:1;min-width:140px;max-width:200px;text-align:center;animation:popIn .35s ease}
+.gpos{font-size:26px;margin-bottom:6px}
+.gname{font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700;color:var(--gold);line-height:1.2}
+.gmed{font-size:12px;color:var(--muted);margin-top:4px}
+.gprob{font-size:11px;color:var(--accent);margin-top:3px}
+.gbtns{display:flex;gap:10px;flex-wrap:wrap}
+.btn-reroll{background:var(--bg4);border:1px solid var(--border);color:var(--text);font-family:'Rajdhani',sans-serif;font-weight:600;font-size:14px;padding:9px 18px;border-radius:8px;cursor:pointer;transition:all .2s}
+.btn-reroll:hover{border-color:var(--accent);color:var(--accent)}
+.btn-save{background:linear-gradient(135deg,var(--green),#2e7d32);border:none;color:#fff;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;letter-spacing:1px;padding:9px 22px;border-radius:8px;cursor:pointer;transition:opacity .2s}
+.btn-save:hover{opacity:.88}
+.btn-save:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── STATS ── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:14px;margin-bottom:24px}
+.scard{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:18px}
+.scard .lbl{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.5px;margin-bottom:6px}
+.scard .val{font-family:'Rajdhani',sans-serif;font-size:30px;font-weight:700;color:var(--gold)}
+.sec-title{font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.sec-title::after{content:'';flex:1;height:1px;background:var(--border);margin-left:6px}
+.whgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:24px}
+.whcard{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:14px}
+.whtop{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;color:var(--gold);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.whdel{background:none;border:none;color:var(--muted);cursor:pointer;transition:color .2s;font-size:14px}
+.whdel:hover{color:var(--red)}
+.gbrow{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.gbrow .nm{font-size:13px;font-weight:600}
+.gbrow .mt{font-size:11px;color:var(--muted);margin-left:auto}
+.dbt{background:var(--bg3);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px}
+.dbt table{width:100%;border-collapse:collapse}
+.dbt thead th{background:var(--bg4);padding:9px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap}
+.dbt tbody tr{border-bottom:1px solid rgba(58,63,92,.35)}
+.dbt tbody tr:hover{background:var(--bg4)}
+.dbt tbody tr:last-child{border-bottom:none}
+.dbt td{padding:9px 14px;font-size:13px}
+.cwrap{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:24px}
+.psel{background:var(--bg4);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:13px;padding:7px 12px;outline:none;margin-bottom:14px;width:100%;max-width:280px}
+.cbars{display:flex;align-items:flex-end;gap:5px;height:180px;padding-top:16px}
+.bcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end;min-width:26px}
+.bfill{width:100%;background:linear-gradient(to top,var(--accent),rgba(108,99,255,.3));border-radius:4px 4px 0 0;min-height:2px;position:relative;cursor:pointer}
+.bfill:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--bg4);border:1px solid var(--border);padding:3px 8px;border-radius:6px;font-size:11px;white-space:nowrap;color:var(--text);z-index:10}
+.blbl{font-size:9px;color:var(--muted);text-align:center;overflow:hidden;width:100%;white-space:nowrap;text-overflow:ellipsis}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:11px 20px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:9999;box-shadow:0 8px 30px rgba(0,0,0,.5);max-width:90vw;text-align:center}
+#toast.show{opacity:1}
+#toast.success{border-color:var(--green)}
+#toast.error{border-color:var(--red)}
+#toast.info{border-color:var(--accent)}
+.empty{padding:24px;color:var(--muted);font-size:13px;text-align:center}
+
+@media(max-width:600px){
+  .page{padding:12px}
+  header{padding:0 10px}
+  .hlogo{font-size:15px}
+  .nb{padding:6px 9px;font-size:11px}
+  .fight-grid{grid-template-columns:1fr}
+  .gcard{max-width:100%}
+  .wbar input{width:100%}
+}
+
+/* ── ROSTER BOX ── */
+.roster-box{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:24px}
+.roster-chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px;min-height:20px}
+.rchip{background:var(--bg4);border:1px solid var(--border);border-radius:20px;font-size:12px;padding:4px 10px 4px 12px;display:flex;align-items:center;gap:6px}
+.rchip button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;line-height:1;padding:0;transition:color .2s}
+.rchip button:hover{color:var(--red)}
+.roster-add{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.roster-add input{background:var(--bg4);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:13px;padding:7px 12px;outline:none;transition:border-color .2s;width:200px}
+.roster-add input:focus{border-color:var(--accent)}
+.roster-add button{background:var(--bg4);border:1px solid var(--border);color:var(--text);font-family:'Rajdhani',sans-serif;font-weight:600;font-size:13px;padding:7px 16px;border-radius:8px;cursor:pointer;transition:all .2s;white-space:nowrap}
+.roster-add button:hover{border-color:var(--accent);color:var(--accent)}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">⚔ GLORY MANAGER</div>
+    <div class="login-sub">Survivor.io Clan Tool</div>
+    <input type="password" id="pw-input" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="login-err" id="login-err"></div>
+    <button class="btn-gold" onclick="doLogin()">ENTER CLAN HQ</button>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="hlogo">⚔ GLORY <span>MANAGER</span></div>
+  <nav>
+    <button class="nb on" id="nav-weekly" onclick="showPage('weekly')">WEEKLY</button>
+    <button class="nb" id="nav-stats" onclick="showPage('stats')">STATISTICS</button>
+  </nav>
+  <button class="logoutbtn" onclick="logout()">LOGOUT</button>
+</header>
+
+<main>
+
+<!-- ════════ WEEKLY ════════ -->
+<div class="page on" id="page-weekly">
+  <div class="ptitle">Weekly <span>Glory</span> Selection</div>
+  <div class="pdesc">Upload screenshots for each fight (all scroll pages). The app reads text directly in your browser — completely free, no internet needed after load.</div>
+
+  <div class="wbar">
+    <div>
+      <label>Week Label</label>
+      <input type="text" id="week-label" placeholder="e.g. Week 12 · Jan 2025">
+    </div>
+    <div class="sp"></div>
+    <button class="btn-glory" id="btn-glory" onclick="runGlory()" disabled>✨ SELECT GLORY MEMBERS</button>
+  </div>
+
+  <div class="fight-grid" id="fight-grid"></div>
+  <div id="results-area"></div>
+  <div id="glory-area"></div>
+</div>
+
+<!-- ════════ STATS ════════ -->
+<div class="page" id="page-stats">
+  <div class="ptitle">Clan <span>Statistics</span></div>
+  <div class="pdesc">Track medals, participation, and Glory history across all saved weeks.</div>
+  <div class="stats-grid" id="overview-stats"></div>
+  <div class="sec-title">👥 Clan Roster <span style="font-size:12px;color:var(--muted);font-weight:400;font-family:'Exo 2',sans-serif">(used for OCR name correction)</span></div>
+  <div class="roster-box" id="roster-box">
+    <div class="roster-chips" id="roster-chips"></div>
+    <div class="roster-add">
+      <input type="text" id="roster-input" placeholder="Add player name…" onkeydown="if(event.key==='Enter')addToRoster()">
+      <button onclick="addToRoster()">+ Add</button>
+    </div>
+  </div>
+  <div class="sec-title">📅 Weekly History</div>
+  <div class="whgrid" id="week-history-grid"></div>
+  <div class="sec-title">👑 Glory Hall of Fame</div>
+  <div class="dbt" id="glory-hof"></div>
+  <div class="sec-title">📊 All-Time Leaderboard</div>
+  <div class="dbt" id="leaderboard-table"></div>
+  <div class="sec-title">📈 Player Medal History</div>
+  <div class="cwrap">
+    <select class="psel" id="chart-sel" onchange="renderChart()">
+      <option value="">— Select a player —</option>
+    </select>
+    <div id="player-chart"></div>
+  </div>
+</div>
+
+</main>
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════
+//  AUTH — hash only, no plaintext
+// ════════════════════════════════
+const _SEED=['01','ac','e0','b9','d3','dd','26','5e','4d','89','1c','2c','78','f7','df','b4','9a','06','65','16','53','ba','4e','6c','2c','2d','a9','ee','8a','5e','f0','38'].join('');
+
+async function sha256(s){
+  const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+async function getStoredHash(){try{const r=await window.storage.get('g-auth');return r?r.value:null;}catch(e){return null;}}
+async function seedHash(){try{await window.storage.set('g-auth',_SEED);}catch(e){}}
+
+async function checkSession(){
+  let h=await getStoredHash();if(!h){await seedHash();h=_SEED;}
+  const s=sessionStorage.getItem('gls');
+  if(s&&s===h.slice(0,16)){document.getElementById('login-screen').style.display='none';init();}
+}
+async function doLogin(){
+  const v=document.getElementById('pw-input').value;if(!v)return;
+  const ih=await sha256(v);
+  let sh=await getStoredHash();if(!sh){await seedHash();sh=_SEED;}
+  if(ih===sh){
+    sessionStorage.setItem('gls',sh.slice(0,16));
+    document.getElementById('login-screen').style.display='none';init();
+  }else{
+    const el=document.getElementById('login-err');el.textContent='Incorrect password.';
+    document.getElementById('pw-input').value='';setTimeout(()=>el.textContent='',3000);
+  }
+}
+function logout(){sessionStorage.removeItem('gls');document.getElementById('login-screen').style.display='flex';document.getElementById('pw-input').value='';}
+checkSession();
+
+// ════════════════════════════════
+//  STATE
+// ════════════════════════════════
+const FIGHTS=[
+  {id:'boss',  label:'Boss Phase',      type:'boss', badge:'boss-b'},
+  {id:'clash1',label:'Clash · Round 1', type:'clash',badge:'clash-b'},
+  {id:'clash2',label:'Clash · Round 2', type:'clash',badge:'clash-b'},
+  {id:'clash3',label:'Clash · Round 3', type:'clash',badge:'clash-b'},
+];
+let fdata={};   // id -> {shots:[],parsed:[]}
+let merged=[];
+let gloryW=[];
+let weeks=[];
+let roster=[]; // saved player names for fuzzy matching
+FIGHTS.forEach(f=>{fdata[f.id]={shots:[],parsed:[]};});
+
+// ════════════════════════════════
+//  STORAGE
+// ════════════════════════════════
+async function loadWeeks(){try{const r=await window.storage.get('g-weeks');if(r)weeks=JSON.parse(r.value)||[];}catch(e){}}
+async function saveWeeks(){try{await window.storage.set('g-weeks',JSON.stringify(weeks));}catch(e){toast('Storage error','error');}}
+async function loadRoster(){try{const r=await window.storage.get('g-roster');if(r)roster=JSON.parse(r.value)||[];}catch(e){}}
+async function saveRoster(){try{await window.storage.set('g-roster',JSON.stringify(roster));}catch(e){}}
+async function learnNames(names){
+  let changed=false;
+  names.forEach(name=>{
+    const k=name.toLowerCase();
+    if(!roster.find(r=>r.toLowerCase()===k)){roster.push(name);changed=true;}
+  });
+  if(changed) await saveRoster();
+}
+
+// ════════════════════════════════
+//  FUZZY NAME MATCHING
+//  Levenshtein distance — match OCR output to known roster names
+// ════════════════════════════════
+function levenshtein(a,b){
+  a=a.toLowerCase();b=b.toLowerCase();
+  const m=a.length,n=b.length;
+  const dp=Array.from({length:m+1},(_,i)=>Array.from({length:n+1},(_,j)=>i===0?j:j===0?i:0));
+  for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)
+    dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+function fuzzyMatch(rawName){
+  if(!roster.length) return rawName;
+  const maxDist=Math.max(2, Math.floor(rawName.length*0.3)); // allow ~30% edit distance
+  let best=null,bestDist=Infinity;
+  for(const r of roster){
+    const d=levenshtein(rawName,r);
+    if(d<bestDist){bestDist=d;best=r;}
+  }
+  // Only correct if close enough — otherwise keep OCR result as-is
+  return (best && bestDist<=maxDist) ? best : rawName;
+}
+
+// ════════════════════════════════
+//  INIT / NAV
+// ════════════════════════════════
+async function init(){
+  await loadWeeks();
+  await loadRoster();
+  buildCards();
+  prewarmOCR(); // start loading engine in background immediately
+}
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
+  document.getElementById('page-'+id).classList.add('on');
+  document.getElementById('nav-'+id).classList.add('on');
+  if(id==='stats')renderStats();
+}
+
+// ════════════════════════════════
+//  FIGHT CARDS
+// ════════════════════════════════
+function buildCards(){
+  const g=document.getElementById('fight-grid');g.innerHTML='';
+  FIGHTS.forEach(f=>{
+    const d=document.createElement('div');d.className='fcard';
+    d.innerHTML=`
+      <div class="fcard-head">
+        <span class="fbadge ${f.badge}">${f.type==='boss'?'BOSS':'CLASH'}</span>
+        <span class="ftitle">${f.label}</span>
+        <span class="fcount" id="fc-${f.id}">0 shots</span>
+      </div>
+      <div class="dropzone" id="dz-${f.id}"
+        ondragover="dzO(event,'${f.id}')" ondragleave="dzL(event,'${f.id}')" ondrop="dzD(event,'${f.id}')">
+        <input type="file" multiple accept="image/*" onchange="dzF(event,'${f.id}')">
+        <div class="dzi">📸</div>
+        <div class="dzl">Drop screenshots or <b>click to browse</b></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">All scroll pages for this fight</div>
+      </div>
+      <div class="thumbs" id="th-${f.id}"></div>
+      <div class="ocr-prog-wrap" id="pw-${f.id}"><div class="ocr-prog-fill" id="pf-${f.id}" style="width:0%"></div></div>
+      <div class="review-panel" id="rv-${f.id}"></div>
+      <div class="ocr-bar">
+        <button class="ocrbtn" id="ob-${f.id}" onclick="scanFight('${f.id}')" disabled>
+          <span id="obs-${f.id}">🔍 Scan</span>
+        </button>
+      </div>`;
+    g.appendChild(d);
+  });
+}
+function dzO(e,id){e.preventDefault();document.getElementById('dz-'+id).classList.add('over');}
+function dzL(e,id){document.getElementById('dz-'+id).classList.remove('over');}
+function dzD(e,id){e.preventDefault();document.getElementById('dz-'+id).classList.remove('over');addShots([...e.dataTransfer.files],id);}
+function dzF(e,id){addShots([...e.target.files],id);e.target.value='';}
+
+function addShots(files,fid){
+  files.filter(f=>f.type.startsWith('image/')).forEach(file=>{
+    const r=new FileReader();
+    r.onload=ev=>{fdata[fid].shots.push({url:ev.target.result,status:'pending'});refreshCard(fid);};
+    r.readAsDataURL(file);
+  });
+}
+function removeShot(fid,i){fdata[fid].shots.splice(i,1);refreshCard(fid);}
+function refreshCard(fid){
+  const shots=fdata[fid].shots;
+  document.getElementById('fc-'+fid).textContent=shots.length+' shot'+(shots.length!==1?'s':'');
+  document.getElementById('ob-'+fid).disabled=shots.length===0;
+  const th=document.getElementById('th-'+fid);th.innerHTML='';
+  shots.forEach((s,i)=>{
+    const cls=s.status==='ok'?'s-ok':s.status==='scan'?'s-scan':s.status==='err'?'s-err':'s-pending';
+    const lbl=s.status==='ok'?'✓':s.status==='scan'?'…':s.status==='err'?'✗':'?';
+    const d=document.createElement('div');d.className='thumb';
+    d.innerHTML=`<img src="${s.url}"><button class="xbtn" onclick="removeShot('${fid}',${i})">×</button><div class="sbadge ${cls}">${lbl}</div>`;
+    d.querySelector('img').addEventListener('click',function(e){e.stopPropagation();openLightbox(this.src);});
+    th.appendChild(d);
+  });
+}
+
+// ════════════════════════════════
+//  OCR — Tesseract.js (100% free, runs in browser)
+// ════════════════════════════════
+let _worker=null;
+let _workerReady=false;
+
+async function prewarmOCR(){
+  // Called at login — loads the engine silently in background
+  // so the first real scan button click is instant
+  try{
+    _worker=await Tesseract.createWorker('eng',1,{logger:()=>{}});
+    await _worker.setParameters({
+      tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_#<>@. ',
+      preserve_interword_spaces:'1',
+    });
+    _workerReady=true;
+    // Update all scan buttons to show ready state
+    document.querySelectorAll('.ocrbtn').forEach(b=>{
+      if(b.disabled) b.querySelector('span').textContent='🔍 Scan';
+    });
+  }catch(e){console.warn('OCR prewarm failed',e);}
+}
+
+async function getWorker(statusEl){
+  if(_workerReady) return _worker;
+  // Fallback: init now if prewarm hasn't finished yet
+  statusEl.innerHTML='<span class="spinner-el"></span> Loading OCR engine…';
+  if(!_worker){
+    _worker=await Tesseract.createWorker('eng',1,{logger:()=>{}});
+    await _worker.setParameters({
+      tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_#<>@. ',
+      preserve_interword_spaces:'1',
+    });
+    _workerReady=true;
+  }
+  return _worker;
+}
+
+function renderReview(fid){
+  const rv=document.getElementById('rv-'+fid);
+  if(!rv) return;
+  const fd=fdata[fid];
+  rv.innerHTML=`<div class="rv-hint">✏️ Click any name to correct OCR errors — changes apply immediately</div>`
+    +fd.parsed.map((p,i)=>`
+    <div class="rrow">
+      <input class="rname-input" value="${p.name.replace(/"/g,'&quot;')}"
+        onchange="editReviewName('${fid}',${i},this.value)"
+        onblur="editReviewName('${fid}',${i},this.value)"
+        title="Click to edit name">
+      <span class="rmed ${p.medals===0?'rz':''}">${p.medals} 🏅</span>
+      <button class="rdel" onclick="deleteReviewRow('${fid}',${i})" title="Remove this entry">✕</button>
+    </div>`).join('');
+}
+
+function editReviewName(fid,idx,newName){
+  newName=newName.trim();
+  if(!newName) return;
+  fdata[fid].parsed[idx].name=newName;
+  // Re-deduplicate in case name now matches another row
+  const seen={};
+  fdata[fid].parsed=fdata[fid].parsed.filter(p=>{
+    const k=p.name.toLowerCase();
+    if(seen[k]){ seen[k].medals=Math.max(seen[k].medals,p.medals); return false; }
+    seen[k]=p; return true;
+  });
+  mergeAll();renderResults();
+  const eligible=merged.filter(p=>p.total>0);
+  document.getElementById('btn-glory').disabled=eligible.length<3;
+}
+
+function deleteReviewRow(fid,idx){
+  fdata[fid].parsed.splice(idx,1);
+  renderReview(fid);
+  mergeAll();renderResults();
+  const eligible=merged.filter(p=>p.total>0);
+  document.getElementById('btn-glory').disabled=eligible.length<3;
+}
+
+async function scanFight(fid){
+  const fd=fdata[fid];
+  if(!fd.shots.length)return;
+
+  const btn=document.getElementById('ob-'+fid);
+  const span=document.getElementById('obs-'+fid);
+  const pw=document.getElementById('pw-'+fid);
+  const pf=document.getElementById('pf-'+fid);
+  const rv=document.getElementById('rv-'+fid);
+
+  btn.disabled=true;pw.style.display='block';pf.style.width='0%';rv.style.display='none';
+  fd.shots.forEach(s=>s.status='scan');refreshCard(fid);
+
+  const worker=await getWorker(span);
+  const found={};
+
+  for(let i=0;i<fd.shots.length;i++){
+    span.innerHTML=`<span class="spinner-el"></span> Scanning ${i+1}/${fd.shots.length}…`;
+    pf.style.width=Math.round((i/fd.shots.length)*90)+'%';
+    try{
+      const {nameImg, numImg}=await preprocessImg(fd.shots[i].url);
+      const nameResult=await worker.recognize(nameImg);
+      const numResult=await worker.recognize(numImg);
+      parseLines(nameResult.data.text, numResult.data.text).forEach(({name,medals})=>{
+        // Fuzzy-correct the OCR name against known roster
+        const corrected=fuzzyMatch(name.trim());
+        const k=corrected.toLowerCase();
+        if(!found[k]||medals>found[k].medals) found[k]={name:corrected,medals};
+      });
+      fd.shots[i].status='ok';
+    }catch(e){fd.shots[i].status='err';}
+    refreshCard(fid);
+  }
+
+  pf.style.width='100%';
+  fd.parsed=Object.values(found).sort((a,b)=>b.medals-a.medals);
+  // Save any new names to roster for future fuzzy matching
+  await learnNames(fd.parsed.map(p=>p.name));
+
+  // Show editable review panel
+  if(fd.parsed.length){
+    rv.style.display='block';
+    renderReview(fid);
+  }
+
+  setTimeout(()=>pw.style.display='none',700);
+  span.innerHTML=`✓ ${fd.parsed.length} players found — Re-scan`;
+  btn.disabled=false;
+
+  mergeAll();renderResults();
+  const eligible=merged.filter(p=>p.total>0);
+  document.getElementById('btn-glory').disabled=eligible.length<3;
+  toast(`✓ ${FIGHTS.find(f=>f.id===fid).label}: ${fd.parsed.length} players`,'success');
+}
+
+// ── Image preprocessing for better OCR accuracy ──────────
+//  The Survivor.io Member Result popup has:
+//  - Dark grey row backgrounds (~RGB 45-60)
+//  - White/light player names and numbers
+//  We create TWO separate crops to avoid the medal icon (which OCR misreads):
+//    1) Name crop:   left 29% → right 63%  (stops under the 'S' of "Member Result")
+//    2) Number crop:  left 74% → right 88%  (just the medal count digits)
+//  Both share the same vertical range (top 16%, bottom 83.5%).
+//  Each is upscaled and contrast-enhanced so Tesseract sees dark text on white.
+function _cropAndEnhance(img,xPct,yPct,wPct,hPct,scale){
+  const W=img.naturalWidth,H=img.naturalHeight;
+  const x=Math.round(W*xPct),y=Math.round(H*yPct);
+  const w=Math.round(W*wPct),h=Math.round(H*hPct);
+  const c=document.createElement('canvas');
+  c.width=w*scale;c.height=h*scale;
+  const ctx=c.getContext('2d');
+  ctx.drawImage(img,x,y,w,h,0,0,c.width,c.height);
+  const id=ctx.getImageData(0,0,c.width,c.height);
+  const d=id.data;
+  for(let j=0;j<d.length;j+=4){
+    const lum=0.299*d[j]+0.587*d[j+1]+0.114*d[j+2];
+    const out=lum>130?0:255;
+    d[j]=d[j+1]=d[j+2]=out;
+  }
+  ctx.putImageData(id,0,0);
+  return c.toDataURL('image/png');
+}
+async function preprocessImg(dataUrl){
+  return new Promise(res=>{
+    const img=new Image();
+    img.onload=()=>{
+      const SC=2.4;
+      // Vertical: top 16%, height 67% (content rows only, skips header + round buttons)
+      const yPct=0.16, hPct=0.67;
+      // Name crop: 27% → 63% width (avatar to just under the 'S' of "Member Result")
+      const nameImg=_cropAndEnhance(img, 0.27, yPct, 0.36, hPct, SC);
+      // Number crop: 74% → 88% width (digits only, skips medal icon)
+      const numImg=_cropAndEnhance(img, 0.74, yPct, 0.14, hPct, SC);
+      res({nameImg, numImg});
+    };
+    img.src=dataUrl;
+  });
+}
+
+
+// ── Parse OCR output from two separate crops (names + numbers) ────────────
+function parseLines(nameRaw, numRaw){
+  const out=[];
+  // Parse name lines — just player names, no numbers expected
+  const nameLines=nameRaw.split('\n').map(l=>l.trim()).filter(l=>l.length>=2);
+  // Parse number lines — just digits
+  const numLines=numRaw.split('\n').map(l=>l.trim()).filter(l=>l.length>=1);
+
+  // Extract clean names
+  const names=[];
+  for(const line of nameLines){
+    let name=line.replace(/^[^a-zA-Z0-9]+/,'')   // leading junk
+                  .replace(/[^\x20-\x7E]/g,'')     // non-ASCII glyphs
+                  .replace(/\s+/g,' ')
+                  .trim();
+    if(name.length<2||name.length>26)continue;
+    if(!/[a-zA-Z]/.test(name))continue;
+    if(/^(round|member|result|phase|boss|clash|time|left|only|best|current|ally|lineup|turf|lunar|mine|expedition|phases|attack)/i.test(name))continue;
+    names.push(name);
+  }
+
+  // Extract clean numbers
+  const nums=[];
+  for(const line of numLines){
+    // Extract the first number from the line
+    const m=line.match(/(\d+)/);
+    if(!m)continue;
+    const val=parseInt(m[1],10);
+    if(val<0||val>99999)continue;
+    nums.push(val);
+  }
+
+  // Match names to numbers by row position (both crops have same vertical range)
+  const count=Math.min(names.length,nums.length);
+  for(let i=0;i<count;i++){
+    out.push({name:names[i], medals:nums[i]});
+  }
+
+  // If we got more names than numbers, include them with 0 medals
+  // (they might have 0 that OCR missed)
+  for(let i=count;i<names.length;i++){
+    out.push({name:names[i], medals:0});
+  }
+
+  return out;
+}
+
+// ════════════════════════════════
+//  MERGE & RENDER
+// ════════════════════════════════
+function mergeAll(){
+  const map={};
+  const activeF=FIGHTS.filter(f=>fdata[f.id].parsed.length>0);
+  FIGHTS.forEach(f=>{
+    fdata[f.id].parsed.forEach(p=>{
+      const k=p.name.toLowerCase();
+      if(!map[k])map[k]={name:p.name,total:0,boss:0,clash:0,fights:new Set()};
+      if(f.type==='boss')map[k].boss+=p.medals;else map[k].clash+=p.medals;
+      map[k].total=map[k].boss+map[k].clash;
+      if(p.medals>0)map[k].fights.add(f.id);
+    });
+  });
+  merged=Object.values(map).map(p=>({
+    ...p,participated:p.fights.size,totalFights:activeF.length,
+    noParticipation:p.total===0&&activeF.length>0
+  })).sort((a,b)=>b.total-a.total);
+}
+
+function renderResults(){
+  const area=document.getElementById('results-area');
+  if(!merged.length){area.innerHTML='';return;}
+  const tf=FIGHTS.filter(f=>fdata[f.id].parsed.length>0).length;
+  const kicks=merged.filter(p=>p.noParticipation);
+  let html=`<div class="res-card">
+    <div class="res-head">
+      <div class="res-title">📋 Combined Medal Standings</div>
+      <div class="pill"><b>${merged.length}</b> members · ${tf} fights scanned</div>
+      ${kicks.length?`<div style="color:var(--red);font-size:12px">⚠ ${kicks.length} with zero medals</div>`:''}
+    </div>
+    <div class="tscroll"><table class="rtable">
+    <thead><tr><th>#</th><th>PLAYER</th><th>TOTAL</th><th style="color:var(--boss)">BOSS</th><th style="color:var(--clash)">CLASH</th><th>PARTICIPATION</th><th>STATUS</th></tr></thead>
+    <tbody>`;
+  merged.forEach((p,i)=>{
+    const rk=i===0?'r1':i===1?'r2':i===2?'r3':'';
+    const pct=p.totalFights>0?Math.round(p.participated/p.totalFights*100):0;
+    html+=`<tr>
+      <td class="rk ${rk}">${i+1}</td>
+      <td style="font-weight:600">${p.name}</td>
+      <td><input class="minput" type="number" value="${p.total}" min="0" onchange="editM('${p.name.replace(/'/g,"\\'")}',this.value)"></td>
+      <td style="color:var(--boss);font-weight:600">${p.boss}</td>
+      <td style="color:var(--clash);font-weight:600">${p.clash}</td>
+      <td><div style="font-size:12px">${p.participated}/${p.totalFights}</div><div class="pbar"><div class="pbar-f" style="width:${pct}%"></div></div></td>
+      <td>${p.noParticipation?'<span class="kflag">⚠ KICK?</span>':'<span style="color:var(--green);font-size:12px">✓ Active</span>'}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table></div></div>`;
+  area.innerHTML=html;
+}
+
+function editM(name,val){
+  const p=merged.find(x=>x.name===name);
+  if(p){p.total=parseInt(val)||0;merged.sort((a,b)=>b.total-a.total);}
+  const el=merged.filter(x=>x.total>0);
+  document.getElementById('btn-glory').disabled=el.length<3;
+}
+
+// ════════════════════════════════
+//  GLORY SELECTION
+// ════════════════════════════════
+// Leaders/vice-leaders excluded from glory member lottery
+const GLORY_EXEMPT=['bzoei','nomi1113','silasp'];
+function runGlory(){
+  const el=merged.filter(p=>p.total>0 && !GLORY_EXEMPT.includes(p.name.toLowerCase()));
+  if(el.length<3){toast('Need ≥3 players with medals!','error');return;}
+  const tot=el.reduce((s,p)=>s+p.total,0);
+  const winners=[];const pool=[...el];
+  for(let i=0;i<3;i++){
+    const t=pool.reduce((s,p)=>s+p.total,0);let r=Math.random()*t;
+    for(let j=0;j<pool.length;j++){r-=pool[j].total;if(r<=0){winners.push({...pool[j],prob:Math.round(pool[j].total/tot*1000)/10});pool.splice(j,1);break;}}
+  }
+  gloryW=winners;
+  const pos=['🥇','🥈','🥉'];
+  let html=`<div class="glory-sec">
+    <div class="glory-title">👑 Glory Members of the Week</div>
+    <div class="glory-sub">Weighted random — higher medals = higher chance.</div>
+    <div class="gwinners">
+    ${winners.map((w,i)=>`<div class="gcard"><div class="gpos">${pos[i]}</div><div class="gname">${w.name}</div><div class="gmed">${w.total} medals</div><div class="gprob">~${w.prob}% chance</div></div>`).join('')}
+    </div>
+    <div class="gbtns">
+      <button class="btn-reroll" onclick="runGlory()">🔄 Re-roll</button>
+      <button class="btn-save" id="btn-save" onclick="saveWeek()">💾 Save this Week</button>
+    </div></div>`;
+  document.getElementById('glory-area').innerHTML=html;
+  document.getElementById('glory-area').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// ════════════════════════════════
+//  SAVE WEEK
+// ════════════════════════════════
+async function saveWeek(){
+  const label=document.getElementById('week-label').value.trim()||`Week ${weeks.length+1}`;
+  weeks.unshift({
+    id:Date.now(),label,date:new Date().toLocaleDateString(),
+    players:merged.map(p=>({name:p.name,total:p.total,boss:p.boss,clash:p.clash,participated:p.participated,totalFights:p.totalFights})),
+    gloryWinners:gloryW.map(w=>({name:w.name,medals:w.total}))
+  });
+  await saveWeeks();
+  document.getElementById('btn-save').disabled=true;
+  toast(`✓ Week "${label}" saved!`,'success');
+}
+
+// ════════════════════════════════
+//  ROSTER UI
+// ════════════════════════════════
+function renderRoster(){
+  const c=document.getElementById('roster-chips');
+  if(!c)return;
+  if(!roster.length){c.innerHTML='<div style="color:var(--muted);font-size:12px">No players yet — names are added automatically when you scan, or add them manually.</div>';return;}
+  c.innerHTML=roster.slice().sort((a,b)=>a.localeCompare(b)).map(name=>`
+    <div class="rchip"><span>${name}</span><button onclick="removeFromRoster('${name.replace(/'/g,"\'")}')">×</button></div>`).join('');
+}
+async function addToRoster(){
+  const inp=document.getElementById('roster-input');
+  const name=inp.value.trim();
+  if(!name)return;
+  if(!roster.find(r=>r.toLowerCase()===name.toLowerCase())){roster.push(name);await saveRoster();}
+  inp.value='';renderRoster();
+}
+async function removeFromRoster(name){
+  roster=roster.filter(r=>r!==name);
+  await saveRoster();renderRoster();
+}
+
+// ════════════════════════════════
+//  STATS
+// ════════════════════════════════
+function renderStats(){
+  renderRoster();
+  const allP=new Set();let totM=0;
+  weeks.forEach(w=>w.players.forEach(p=>{allP.add(p.name);totM+=p.total;}));
+  document.getElementById('overview-stats').innerHTML=`
+    <div class="scard"><div class="lbl">WEEKS TRACKED</div><div class="val">${weeks.length}</div></div>
+    <div class="scard"><div class="lbl">UNIQUE PLAYERS</div><div class="val">${allP.size}</div></div>
+    <div class="scard"><div class="lbl">TOTAL MEDALS</div><div class="val">${totM.toLocaleString()}</div></div>
+    <div class="scard"><div class="lbl">GLORY TITLES</div><div class="val">${weeks.reduce((s,w)=>s+w.gloryWinners.length,0)}</div></div>`;
+
+  const wh=document.getElementById('week-history-grid');
+  if(!weeks.length)wh.innerHTML='<div class="empty">No weeks saved yet.</div>';
+  else wh.innerHTML=weeks.map((w,wi)=>`
+    <div class="whcard">
+      <div class="whtop"><span>🗓 ${w.label}</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;color:var(--muted)">${w.date}</span>
+          <button class="whdel" onclick="delWeek(${wi})">🗑</button>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">${w.players.length} members · ${w.players.reduce((s,p)=>s+p.total,0).toLocaleString()} medals</div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">GLORY MEMBERS</div>
+      ${w.gloryWinners.map((g,i)=>`<div class="gbrow"><span>${['🥇','🥈','🥉'][i]}</span><span class="nm">${g.name}</span><span class="mt">${g.medals} 🏅</span></div>`).join('')}
+    </div>`).join('');
+
+  const counts={};weeks.forEach(w=>w.gloryWinners.forEach(g=>{counts[g.name]=(counts[g.name]||0)+1;}));
+  const hof=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const hofD=document.getElementById('glory-hof');
+  if(!hof.length)hofD.innerHTML='<div class="empty">No glory members yet.</div>';
+  else hofD.innerHTML=`<div class="tscroll"><table><thead><tr><th>#</th><th>PLAYER</th><th>GLORY TITLES</th><th></th></tr></thead><tbody>
+    ${hof.map(([n,c],i)=>`<tr><td style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;color:${['#FFD700','#C0C0C0','#CD7F32'][i]||'var(--muted)'};width:44px">${i+1}</td><td style="font-weight:600">${n}</td><td style="color:var(--gold);font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700">${c} 👑</td><td>${'⭐'.repeat(Math.min(c,10))}</td></tr>`).join('')}
+    </tbody></table></div>`;
+
+  const lb={};weeks.forEach(w=>w.players.forEach(p=>{if(!lb[p.name])lb[p.name]={name:p.name,total:0,weeks:0,participated:0,totalFights:0};lb[p.name].total+=p.total;lb[p.name].weeks++;lb[p.name].participated+=(p.participated||0);lb[p.name].totalFights+=(p.totalFights||0);}));
+  const lbs=Object.values(lb).sort((a,b)=>b.total-a.total);
+  const lbD=document.getElementById('leaderboard-table');
+  if(!lbs.length)lbD.innerHTML='<div class="empty">No data yet.</div>';
+  else lbD.innerHTML=`<div class="tscroll"><table><thead><tr><th>#</th><th>PLAYER</th><th>ALL-TIME MEDALS</th><th>WEEKS</th><th>AVG/WEEK</th><th>PARTICIPATION</th></tr></thead><tbody>
+    ${lbs.map((p,i)=>{const pc=p.totalFights>0?Math.round(p.participated/p.totalFights*100)+'%':'—';return `<tr><td style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;color:${['#FFD700','#C0C0C0','#CD7F32'][i]||'var(--muted)'};width:44px">${i+1}</td><td style="font-weight:600">${p.name}</td><td style="color:var(--gold);font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700">${p.total.toLocaleString()}</td><td style="color:var(--muted)">${p.weeks}</td><td style="color:var(--gold-light)">${p.weeks>0?Math.round(p.total/p.weeks):0}</td><td style="font-size:12px">${pc}</td></tr>`;}).join('')}
+    </tbody></table></div>`;
+
+  const sel=document.getElementById('chart-sel');
+  const pls=new Set();weeks.forEach(w=>w.players.forEach(p=>pls.add(p.name)));
+  sel.innerHTML='<option value="">— Select a player —</option>';
+  [...pls].sort().forEach(n=>{sel.innerHTML+=`<option value="${n}">${n}</option>`;});
+}
+
+async function delWeek(wi){
+  if(!confirm('Delete this week?'))return;
+  weeks.splice(wi,1);await saveWeeks();renderStats();toast('Week deleted.','info');
+}
+
+function renderChart(){
+  const name=document.getElementById('chart-sel').value;
+  const div=document.getElementById('player-chart');
+  if(!name){div.innerHTML='';return;}
+  const data=[...weeks].reverse().map(w=>{const p=w.players.find(x=>x.name===name);return{label:w.label,medals:p?p.total:0};});
+  if(!data.length){div.innerHTML='<div class="empty">No data.</div>';return;}
+  const max=Math.max(...data.map(d=>d.medals),1);
+  const gw=weeks.filter(w=>w.gloryWinners.some(g=>g.name===name));
+  div.innerHTML=`
+    <div style="font-size:13px;margin-bottom:12px;color:var(--muted)">
+      ${name} · All-time: <b style="color:var(--gold)">${data.reduce((s,d)=>s+d.medals,0).toLocaleString()} medals</b>
+      ${gw.length?` · 👑 Glory titles: <b style="color:var(--gold)">${gw.length}</b>`:''}
+    </div>
+    <div class="cbars">${data.map(d=>{const h=Math.round(d.medals/max*160);return`<div class="bcol"><div class="bfill" style="height:${h}px" data-tip="${d.medals} — ${d.label}"></div><div class="blbl">${d.label.replace(/Week /,'W')}</div></div>`;}).join('')}</div>`;
+}
+
+// ════════════════════════════════
+//  TOAST
+// ════════════════════════════════
+function toast(msg,type='info'){
+  const t=document.getElementById('toast');t.textContent=msg;t.className='show '+type;
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+// ── Lightbox for screenshot preview ──
+function openLightbox(src){
+  const lb=document.getElementById('lightbox');
+  lb.querySelector('img').src=src;
+  lb.classList.add('active');
+}
+function closeLightbox(){
+  document.getElementById('lightbox').classList.remove('active');
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLightbox();});
+</script>
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">×</button>
+  <img src="" onclick="event.stopPropagation()">
+</div>
+</body>
+</html>
