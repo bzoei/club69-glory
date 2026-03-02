@@ -464,7 +464,7 @@ async function learnNames(names){
 
 // ════════════════════════════════
 //  FUZZY NAME MATCHING
-//  Levenshtein distance — match OCR output to known roster names
+//  Levenshtein distance + OCR-aware substitutions
 // ════════════════════════════════
 function levenshtein(a,b){
   a=a.toLowerCase();b=b.toLowerCase();
@@ -475,15 +475,28 @@ function levenshtein(a,b){
   return dp[m][n];
 }
 
+// OCR-normalized comparison — treat commonly confused characters as same
+function ocrNormalize(s){
+  return s.toLowerCase()
+    .replace(/[l|I]/g,'i')   // l, |, I → i
+    .replace(/[O]/g,'0')     // O → 0
+    .replace(/[S]/g,'s')     // S → s
+    .replace(/[Z]/g,'z');    // Z → z
+}
+
 function fuzzyMatch(rawName){
   if(!roster.length) return rawName;
-  const maxDist=Math.max(2, Math.floor(rawName.length*0.3)); // allow ~30% edit distance
+  const normRaw=ocrNormalize(rawName);
+
   let best=null,bestDist=Infinity;
   for(const r of roster){
+    // Check OCR-normalized exact match first (handles i↔l, O↔0 etc.)
+    if(ocrNormalize(r)===normRaw) return r;
     const d=levenshtein(rawName,r);
     if(d<bestDist){bestDist=d;best=r;}
   }
-  // Only correct if close enough — otherwise keep OCR result as-is
+  // Allow ~25% edit distance, minimum 2
+  const maxDist=Math.max(2, Math.floor(rawName.length*0.25));
   return (best && bestDist<=maxDist) ? best : rawName;
 }
 
@@ -747,27 +760,25 @@ async function preprocessImg(dataUrl){
 function parseLines(nameRaw, numRaw){
   const out=[];
   // Parse name lines — just player names, no numbers expected
-  const nameLines=nameRaw.split('\n').map(l=>l.trim()).filter(l=>l.length>=2);
+  const nameLines=nameRaw.split('\n').map(l=>l.trim()).filter(l=>l.length>=1);
   // Parse number lines — just digits
   const numLines=numRaw.split('\n').map(l=>l.trim()).filter(l=>l.length>=1);
 
   // Extract clean names
-  const names=[];
+  const rawNames=[];
   for(const line of nameLines){
     let name=line.replace(/^[^a-zA-Z0-9]+/,'')   // leading junk
                   .replace(/[^\x20-\x7E]/g,'')     // non-ASCII glyphs
                   .replace(/\s+/g,' ')
                   .trim();
-    if(name.length<2||name.length>26)continue;
-    if(!/[a-zA-Z]/.test(name))continue;
+    if(name.length<1)continue;
     if(/^(round|member|result|phase|boss|clash|time|left|only|best|current|ally|lineup|turf|lunar|mine|expedition|phases|attack)/i.test(name))continue;
-    names.push(name);
+    rawNames.push(name);
   }
 
   // Extract clean numbers
   const nums=[];
   for(const line of numLines){
-    // Extract the first number from the line
     const m=line.match(/(\d+)/);
     if(!m)continue;
     const val=parseInt(m[1],10);
@@ -775,16 +786,34 @@ function parseLines(nameRaw, numRaw){
     nums.push(val);
   }
 
-  // Match names to numbers by row position (both crops have same vertical range)
-  const count=Math.min(names.length,nums.length);
-  for(let i=0;i<count;i++){
-    out.push({name:names[i], medals:nums[i]});
+  // If we have more name lines than number lines, some names probably wrapped
+  // to 2 lines in the game UI. Merge consecutive name lines until counts match.
+  const names=[...rawNames];
+  while(names.length>nums.length && names.length>1){
+    // Find the shortest line — that's most likely a wrapped continuation
+    let minLen=Infinity, minIdx=-1;
+    for(let i=1;i<names.length;i++){  // skip index 0
+      if(names[i].length<minLen){minLen=names[i].length;minIdx=i;}
+    }
+    if(minIdx>0){
+      // Merge with previous line
+      names[minIdx-1]+=names[minIdx];
+      names.splice(minIdx,1);
+    }else break;
   }
 
-  // If we got more names than numbers, include them with 0 medals
-  // (they might have 0 that OCR missed)
-  for(let i=count;i<names.length;i++){
-    out.push({name:names[i], medals:0});
+  // Filter names that are too short or lack letters (after merging)
+  const cleanNames=names.filter(n=>n.length>=2 && /[a-zA-Z]/.test(n) && n.length<=30);
+
+  // Match names to numbers by row position
+  const count=Math.min(cleanNames.length,nums.length);
+  for(let i=0;i<count;i++){
+    out.push({name:cleanNames[i], medals:nums[i]});
+  }
+
+  // If we still have more names than numbers, include with 0 medals
+  for(let i=count;i<cleanNames.length;i++){
+    out.push({name:cleanNames[i], medals:0});
   }
 
   return out;
@@ -793,13 +822,29 @@ function parseLines(nameRaw, numRaw){
 // ════════════════════════════════
 //  MERGE & RENDER
 // ════════════════════════════════
+
+// Fuzzy-consolidate: find the best roster match for a name
+function resolvePlayerName(name){
+  // First try exact roster match
+  const exact=roster.find(r=>r.toLowerCase()===name.toLowerCase());
+  if(exact) return exact;
+  // Then fuzzy match against roster
+  if(roster.length){
+    const fm=fuzzyMatch(name);
+    if(fm!==name) return fm;
+  }
+  return name;
+}
+
 function mergeAll(){
   const map={};
   const activeF=FIGHTS.filter(f=>fdata[f.id].parsed.length>0);
   FIGHTS.forEach(f=>{
     fdata[f.id].parsed.forEach(p=>{
-      const k=p.name.toLowerCase();
-      if(!map[k])map[k]={name:p.name,total:0,boss:0,clash:0,fights:new Set()};
+      // Resolve name against roster to consolidate OCR variants
+      const resolved=resolvePlayerName(p.name);
+      const k=resolved.toLowerCase();
+      if(!map[k])map[k]={name:resolved,total:0,boss:0,clash:0,fights:new Set()};
       if(f.type==='boss')map[k].boss+=p.medals;else map[k].clash+=p.medals;
       map[k].total=map[k].boss+map[k].clash;
       if(p.medals>0)map[k].fights.add(f.id);
@@ -854,8 +899,16 @@ function editM(name,val){
 // ════════════════════════════════
 // Leaders/vice-leaders excluded from glory member lottery
 const GLORY_EXEMPT=['bzoei','nomi1113','silasp'];
+function isGloryExempt(name){
+  const n=name.toLowerCase();
+  return GLORY_EXEMPT.some(ex=>{
+    if(n===ex) return true;
+    // Also check fuzzy match (handles OCR typos like nomil113 → nomi1113)
+    return levenshtein(n,ex)<=2;
+  });
+}
 function runGlory(){
-  const el=merged.filter(p=>p.total>0 && !GLORY_EXEMPT.includes(p.name.toLowerCase()));
+  const el=merged.filter(p=>p.total>0 && !isGloryExempt(p.name));
   if(el.length<3){toast('Need ≥3 players with medals!','error');return;}
   const tot=el.reduce((s,p)=>s+p.total,0);
   const winners=[];const pool=[...el];
