@@ -26,7 +26,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 @keyframes popIn{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
 
 /* ── LOGIN ── */
-#login-screen,#setup-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:1000}
+#login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:1000}
 .login-box{background:var(--bg3);border:1px solid var(--border);border-top:3px solid var(--gold);border-radius:16px;padding:40px 36px;width:min(400px,90vw);text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6)}
 .login-logo{font-family:'Rajdhani',sans-serif;font-size:28px;font-weight:700;color:var(--gold);letter-spacing:2px;margin-bottom:4px}
 .login-sub{color:var(--muted);font-size:13px;margin-bottom:32px}
@@ -148,7 +148,7 @@ main{position:relative;z-index:1}
 .glory-title{font-family:'Rajdhani',sans-serif;font-size:21px;font-weight:700;color:var(--gold);margin-bottom:3px}
 .glory-sub{color:var(--muted);font-size:13px;margin-bottom:18px}
 .gwinners{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px}
-.gcard{background:var(--bg4);border:1px solid rgba(255,184,0,.35);border-radius:12px;padding:16px 18px;flex:1;min-width:140px;max-width:200px;text-align:center;animation:popIn .35s ease}
+.gcard{background:var(--bg4);border:1px solid rgba(255,184,0,.35);border-radius:12px;padding:16px 18px;flex:1;min-width:140px;max-width:200px;text-align:center;animation:popIn .35s ease;position:relative}
 .gpos{font-size:26px;margin-bottom:6px}
 .gname{font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700;color:var(--gold);line-height:1.2}
 .gmed{font-size:12px;color:var(--muted);margin-top:4px}
@@ -156,6 +156,8 @@ main{position:relative;z-index:1}
 .gbtns{display:flex;gap:10px;flex-wrap:wrap}
 .btn-reroll{background:var(--bg4);border:1px solid var(--border);color:var(--text);font-family:'Rajdhani',sans-serif;font-weight:600;font-size:14px;padding:9px 18px;border-radius:8px;cursor:pointer;transition:all .2s}
 .btn-reroll:hover{border-color:var(--accent);color:var(--accent)}
+.btn-reroll-one{position:absolute;top:8px;right:8px;background:var(--bg3);border:1px solid var(--border);color:var(--muted);font-size:12px;width:28px;height:28px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;padding:0}
+.btn-reroll-one:hover{border-color:var(--accent);color:var(--accent);background:rgba(108,99,255,.15)}
 .btn-save{background:linear-gradient(135deg,var(--green),#2e7d32);border:none;color:#fff;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;letter-spacing:1px;padding:9px 22px;border-radius:8px;cursor:pointer;transition:opacity .2s}
 .btn-save:hover{opacity:.88}
 .btn-save:disabled{opacity:.4;cursor:not-allowed}
@@ -214,6 +216,8 @@ main{position:relative;z-index:1}
 .rchip{background:var(--bg4);border:1px solid var(--border);border-radius:20px;font-size:12px;padding:4px 10px 4px 12px;display:flex;align-items:center;gap:6px}
 .rchip button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;line-height:1;padding:0;transition:color .2s}
 .rchip button:hover{color:var(--red)}
+.rchip-name{cursor:pointer;border-bottom:1px dashed transparent;transition:border-color .2s}
+.rchip-name:hover{border-bottom-color:var(--accent);color:var(--accent)}
 .roster-add{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .roster-add input{background:var(--bg4);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:13px;padding:7px 12px;outline:none;transition:border-color .2s;width:200px}
 .roster-add input:focus{border-color:var(--accent)}
@@ -222,21 +226,6 @@ main{position:relative;z-index:1}
 </style>
 </head>
 <body>
-
-<!-- SETUP — shown if no Firebase config stored -->
-<div id="setup-screen" style="display:none">
-  <div class="login-box" style="max-width:480px">
-    <div class="login-logo">⚙ SETUP</div>
-    <div class="login-sub">Connect to Firebase</div>
-    <div style="color:var(--muted);font-size:12px;text-align:left;margin-bottom:14px;line-height:1.6">
-      Paste your Firebase config JSON below. You can find this in your Firebase Console → Project Settings → General → Your apps → Web app → Config.<br><br>
-      <span style="color:var(--gold);font-size:11px">It looks like: {"apiKey":"...","authDomain":"...","projectId":"...",...}</span>
-    </div>
-    <textarea id="api-url-input" rows="6" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}' style="width:100%;background:var(--bg4);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Exo 2',monospace;font-size:12px;padding:10px 12px;outline:none;margin-bottom:8px;box-sizing:border-box;resize:vertical"></textarea>
-    <div class="login-err" id="setup-err"></div>
-    <button class="btn-gold" onclick="saveFirebaseConfig()">CONNECT</button>
-  </div>
-</div>
 
 <!-- LOGIN -->
 <div id="login-screen">
@@ -256,10 +245,7 @@ main{position:relative;z-index:1}
     <button class="nb on" id="nav-weekly" onclick="showPage('weekly')">WEEKLY</button>
     <button class="nb" id="nav-stats" onclick="showPage('stats')">STATISTICS</button>
   </nav>
-  <div style="display:flex;gap:6px;align-items:center">
-    <button class="logoutbtn" onclick="showApiSetup()" title="Firebase settings" style="font-size:14px;padding:5px 8px">⚙</button>
-    <button class="logoutbtn" onclick="logout()">LOGOUT</button>
-  </div>
+  <button class="logoutbtn" onclick="logout()">LOGOUT</button>
 </header>
 
 <main>
@@ -319,15 +305,24 @@ main{position:relative;z-index:1}
 //  STORAGE — Firebase Firestore
 // ════════════════════════════════
 let db=null;
-const FB_CFG_KEY='g-firebase-cfg';
 
-function getFirebaseConfig(){
-  try{const s=localStorage.getItem(FB_CFG_KEY);return s?JSON.parse(s):null;}catch(e){return null;}
-}
+const FIREBASE_CONFIG={
+  apiKey:"AIzaSyAamx1N1e7bKPhkFsealyB7R-qI7cpqDog",
+  authDomain:"glory-manager-b2823.firebaseapp.com",
+  projectId:"glory-manager-b2823",
+  storageBucket:"glory-manager-b2823.firebasestorage.app",
+  messagingSenderId:"568627462037",
+  appId:"1:568627462037:web:07f89fa877a3f8fb89009c"
+};
 
-function initFirebase(cfg){
-  const app=firebase.initializeApp(cfg);
-  db=firebase.firestore(app);
+function initFirebase(){
+  try{
+    const app=firebase.initializeApp(FIREBASE_CONFIG);
+    db=firebase.firestore(app);
+  }catch(e){
+    if(e.code==='app/duplicate-app') db=firebase.firestore();
+    else throw e;
+  }
 }
 
 async function fbGet(collection,docId){
@@ -356,68 +351,24 @@ async function getStoredHash(){try{const d=await fbGet('glory','auth');return d?
 async function seedHash(){try{await fbSet('glory','auth',{hash:_SEED});}catch(e){}}
 
 async function checkSession(){
-  // Show setup screen if no Firebase config stored
-  const cfg=getFirebaseConfig();
-  if(!cfg){
-    document.getElementById('login-screen').style.display='none';
-    document.getElementById('setup-screen').style.display='flex';
-    return;
-  }
-  try{initFirebase(cfg);}catch(e){
-    if(e.code==='app/duplicate-app') db=firebase.firestore();
-    else{document.getElementById('login-screen').style.display='none';document.getElementById('setup-screen').style.display='flex';return;}
-  }
-  // Firebase connected — hide setup, ensure login is visible
-  document.getElementById('setup-screen').style.display='none';
+  try{initFirebase();}catch(e){console.error('Firebase init error:',e);}
 
   let h;
   try{
     h=await getStoredHash();
     if(!h){await seedHash();h=_SEED;}
   }catch(e){
-    // Firebase connection issue — show setup again
     console.error('Firebase error:',e);
-    document.getElementById('login-screen').style.display='none';
-    document.getElementById('setup-screen').style.display='flex';
-    document.getElementById('setup-err').textContent='Could not connect to Firebase — check your config and Firestore rules';
-    return;
+    toast('Could not connect to Firebase','error');
   }
 
   const s=sessionStorage.getItem('gls');
-  if(s&&s===h.slice(0,16)){
+  if(h&&s&&s===h.slice(0,16)){
     document.getElementById('login-screen').style.display='none';
     init();
   }else{
-    // No active session — show login screen
     document.getElementById('login-screen').style.display='flex';
   }
-}
-function saveFirebaseConfig(){
-  const raw=document.getElementById('api-url-input').value.trim();
-  if(!raw){document.getElementById('setup-err').textContent='Please paste your Firebase config';setTimeout(()=>document.getElementById('setup-err').textContent='',3000);return;}
-  try{
-    let cfg;
-    // Strip out any JS variable assignment wrapper
-    let clean=raw.replace(/^.*?firebaseConfig\s*=\s*/,'').replace(/;?\s*$/,'').trim();
-    // Try JSON first
-    try{cfg=JSON.parse(clean);}catch(_){
-      // Not valid JSON — likely JS object with unquoted keys
-      // Add quotes around unquoted keys: word: → "word":
-      clean=clean.replace(/([{,]\s*)(\w+)\s*:/g,'$1"$2":');
-      cfg=JSON.parse(clean);
-    }
-    if(!cfg.apiKey||!cfg.projectId)throw new Error('Missing apiKey or projectId');
-    localStorage.setItem(FB_CFG_KEY,JSON.stringify(cfg));
-    location.reload();
-  }catch(e){
-    document.getElementById('setup-err').textContent='Invalid config — paste the firebaseConfig from Firebase Console';
-    setTimeout(()=>document.getElementById('setup-err').textContent='',4000);
-  }
-}
-function showApiSetup(){
-  const cfg=getFirebaseConfig();
-  document.getElementById('api-url-input').value=cfg?JSON.stringify(cfg,null,2):'';
-  document.getElementById('setup-screen').style.display='flex';
 }
 async function doLogin(){
   const v=document.getElementById('pw-input').value;if(!v)return;
@@ -903,29 +854,63 @@ function isGloryExempt(name){
   const n=name.toLowerCase();
   return GLORY_EXEMPT.some(ex=>{
     if(n===ex) return true;
-    // Also check fuzzy match (handles OCR typos like nomil113 → nomi1113)
     return levenshtein(n,ex)<=2;
   });
 }
+
+function getGloryPool(){
+  return merged.filter(p=>p.total>0 && !isGloryExempt(p.name));
+}
+
+function weightedPick(pool){
+  const t=pool.reduce((s,p)=>s+p.total,0);
+  let r=Math.random()*t;
+  for(const p of pool){r-=p.total;if(r<=0)return p;}
+  return pool[pool.length-1];
+}
+
 function runGlory(){
-  const el=merged.filter(p=>p.total>0 && !isGloryExempt(p.name));
+  const el=getGloryPool();
   if(el.length<3){toast('Need ≥3 players with medals!','error');return;}
   const tot=el.reduce((s,p)=>s+p.total,0);
-  const winners=[];const pool=[...el];
+  const pool=[...el];
+  gloryW=[];
   for(let i=0;i<3;i++){
-    const t=pool.reduce((s,p)=>s+p.total,0);let r=Math.random()*t;
-    for(let j=0;j<pool.length;j++){r-=pool[j].total;if(r<=0){winners.push({...pool[j],prob:Math.round(pool[j].total/tot*1000)/10});pool.splice(j,1);break;}}
+    const pick=weightedPick(pool);
+    gloryW.push({...pick, prob:Math.round(pick.total/tot*1000)/10});
+    pool.splice(pool.indexOf(pick),1);
   }
-  gloryW=winners;
+  renderGlory();
+}
+
+function rerollOne(slot){
+  const el=getGloryPool();
+  // Exclude the other two winners from the pool
+  const otherNames=gloryW.filter((_,i)=>i!==slot).map(w=>w.name.toLowerCase());
+  const pool=el.filter(p=>!otherNames.includes(p.name.toLowerCase()));
+  if(!pool.length){toast('No other eligible players!','error');return;}
+  const tot=el.reduce((s,p)=>s+p.total,0);
+  const pick=weightedPick(pool);
+  gloryW[slot]={...pick, prob:Math.round(pick.total/tot*1000)/10};
+  renderGlory();
+}
+
+function renderGlory(){
   const pos=['🥇','🥈','🥉'];
   let html=`<div class="glory-sec">
     <div class="glory-title">👑 Glory Members of the Week</div>
-    <div class="glory-sub">Weighted random — higher medals = higher chance.</div>
+    <div class="glory-sub">Weighted random — higher medals = higher chance. Re-roll individually or all at once.</div>
     <div class="gwinners">
-    ${winners.map((w,i)=>`<div class="gcard"><div class="gpos">${pos[i]}</div><div class="gname">${w.name}</div><div class="gmed">${w.total} medals</div><div class="gprob">~${w.prob}% chance</div></div>`).join('')}
+    ${gloryW.map((w,i)=>`<div class="gcard">
+      <div class="gpos">${pos[i]}</div>
+      <div class="gname">${w.name}</div>
+      <div class="gmed">${w.total} medals</div>
+      <div class="gprob">~${w.prob}% chance</div>
+      <button class="btn-reroll-one" onclick="rerollOne(${i})" title="Re-roll this slot">🔄</button>
+    </div>`).join('')}
     </div>
     <div class="gbtns">
-      <button class="btn-reroll" onclick="runGlory()">🔄 Re-roll</button>
+      <button class="btn-reroll" onclick="runGlory()">🔄 Re-roll All</button>
       <button class="btn-save" id="btn-save" onclick="saveWeek()">💾 Save this Week</button>
     </div></div>`;
   document.getElementById('glory-area').innerHTML=html;
@@ -955,7 +940,41 @@ function renderRoster(){
   if(!c)return;
   if(!roster.length){c.innerHTML='<div style="color:var(--muted);font-size:12px">No players yet — names are added automatically when you scan, or add them manually.</div>';return;}
   c.innerHTML=roster.slice().sort((a,b)=>a.localeCompare(b)).map(name=>`
-    <div class="rchip"><span>${name}</span><button onclick="removeFromRoster('${name.replace(/'/g,"\'")}')">×</button></div>`).join('');
+    <div class="rchip">
+      <span class="rchip-name" onclick="editRosterName(this,'${name.replace(/'/g,"\\'")}')\" title="Click to rename">${name}</span>
+      <button onclick="removeFromRoster('${name.replace(/'/g,"\\'")}')">×</button>
+    </div>`).join('');
+}
+async function editRosterName(el,oldName){
+  const span=el;
+  const chip=span.parentElement;
+  // Replace span with an input
+  const inp=document.createElement('input');
+  inp.type='text';inp.value=oldName;
+  inp.className='rchip-edit';
+  inp.style.cssText='background:var(--bg);border:1px solid var(--accent);border-radius:4px;color:var(--text);font-family:inherit;font-size:12px;padding:2px 6px;width:'+Math.max(80,oldName.length*8)+'px;outline:none;';
+  span.replaceWith(inp);
+  inp.focus();inp.select();
+
+  async function commit(){
+    const newName=inp.value.trim();
+    if(newName && newName!==oldName){
+      // Update roster
+      const idx=roster.findIndex(r=>r===oldName);
+      if(idx>=0) roster[idx]=newName;
+      // Also update saved weeks history
+      weeks.forEach(w=>{
+        w.players.forEach(p=>{if(p.name===oldName)p.name=newName;});
+        w.gloryWinners.forEach(g=>{if(g.name===oldName)g.name=newName;});
+      });
+      await saveRoster();
+      await saveWeeks();
+      toast(`Renamed "${oldName}" → "${newName}"`,'success');
+    }
+    renderRoster();
+  }
+  inp.addEventListener('blur',commit);
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();inp.blur();}if(e.key==='Escape'){inp.value=oldName;inp.blur();}});
 }
 async function addToRoster(){
   const inp=document.getElementById('roster-input');
