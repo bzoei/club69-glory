@@ -1076,7 +1076,11 @@ async function editGloryWinner(weekIdx, winnerIdx, el){
   async function commit(){
     const newName=inp.value.trim();
     if(newName && newName!==old){
+      // Update name
       weeks[weekIdx].gloryWinners[winnerIdx].name=newName;
+      // Update medal count to match the new player's actual medals from this week
+      const player=weeks[weekIdx].players.find(p=>p.name.toLowerCase()===newName.toLowerCase());
+      if(player) weeks[weekIdx].gloryWinners[winnerIdx].medals=player.total;
       await saveWeeks();
       toast(`Glory winner updated: "${old}" → "${newName}"`,'success');
     }
