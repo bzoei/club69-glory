@@ -176,6 +176,8 @@ main{position:relative;z-index:1}
 .whdel:hover{color:var(--red)}
 .gbrow{display:flex;align-items:center;gap:8px;margin-bottom:5px}
 .gbrow .nm{font-size:13px;font-weight:600}
+.gw-edit{cursor:pointer;border-bottom:1px dashed transparent;transition:border-color .2s}
+.gw-edit:hover{border-bottom-color:var(--accent);color:var(--accent)}
 .gbrow .mt{font-size:11px;color:var(--muted);margin-left:auto}
 .dbt{background:var(--bg3);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px}
 .dbt table{width:100%;border-collapse:collapse}
@@ -458,6 +460,21 @@ async function init(){
   toast('Syncing with Firebase…','info');
   await loadWeeks();
   await loadRoster();
+  // Auto-fix: resolve misspelled names in saved weeks against current roster
+  if(roster.length && weeks.length){
+    let fixed=false;
+    weeks.forEach(w=>{
+      w.players.forEach(p=>{
+        const resolved=resolvePlayerName(p.name);
+        if(resolved!==p.name){p.name=resolved;fixed=true;}
+      });
+      w.gloryWinners.forEach(g=>{
+        const resolved=resolvePlayerName(g.name);
+        if(resolved!==g.name){g.name=resolved;fixed=true;}
+      });
+    });
+    if(fixed) await saveWeeks();
+  }
   buildCards();
   prewarmOCR();
   toast('✓ Data synced!','success');
@@ -962,10 +979,15 @@ async function editRosterName(el,oldName){
       // Update roster
       const idx=roster.findIndex(r=>r===oldName);
       if(idx>=0) roster[idx]=newName;
-      // Also update saved weeks history
+      // Also update saved weeks history (case-insensitive + fuzzy to catch OCR variants)
+      const oldLower=oldName.toLowerCase();
       weeks.forEach(w=>{
-        w.players.forEach(p=>{if(p.name===oldName)p.name=newName;});
-        w.gloryWinners.forEach(g=>{if(g.name===oldName)g.name=newName;});
+        w.players.forEach(p=>{
+          if(p.name.toLowerCase()===oldLower || levenshtein(p.name.toLowerCase(),oldLower)<=2) p.name=newName;
+        });
+        w.gloryWinners.forEach(g=>{
+          if(g.name.toLowerCase()===oldLower || levenshtein(g.name.toLowerCase(),oldLower)<=2) g.name=newName;
+        });
       });
       await saveRoster();
       await saveWeeks();
@@ -1013,7 +1035,7 @@ function renderStats(){
       </div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px">${w.players.length} members · ${w.players.reduce((s,p)=>s+p.total,0).toLocaleString()} medals</div>
       <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">GLORY MEMBERS</div>
-      ${w.gloryWinners.map((g,i)=>`<div class="gbrow"><span>${['🥇','🥈','🥉'][i]}</span><span class="nm">${g.name}</span><span class="mt">${g.medals} 🏅</span></div>`).join('')}
+      ${w.gloryWinners.map((g,i)=>`<div class="gbrow"><span>${['🥇','🥈','🥉'][i]}</span><span class="nm gw-edit" onclick="editGloryWinner(${wi},${i},this)" title="Click to edit">${g.name}</span><span class="mt">${g.medals} 🏅</span></div>`).join('')}
     </div>`).join('');
 
   const counts={};weeks.forEach(w=>w.gloryWinners.forEach(g=>{counts[g.name]=(counts[g.name]||0)+1;}));
@@ -1041,6 +1063,27 @@ function renderStats(){
 async function delWeek(wi){
   if(!confirm('Delete this week?'))return;
   weeks.splice(wi,1);await saveWeeks();renderStats();toast('Week deleted.','info');
+}
+
+async function editGloryWinner(weekIdx, winnerIdx, el){
+  const old=weeks[weekIdx].gloryWinners[winnerIdx].name;
+  const inp=document.createElement('input');
+  inp.type='text';inp.value=old;
+  inp.style.cssText='background:var(--bg);border:1px solid var(--accent);border-radius:4px;color:var(--text);font-family:inherit;font-size:13px;font-weight:600;padding:2px 6px;width:'+Math.max(90,old.length*9)+'px;outline:none;';
+  el.replaceWith(inp);
+  inp.focus();inp.select();
+
+  async function commit(){
+    const newName=inp.value.trim();
+    if(newName && newName!==old){
+      weeks[weekIdx].gloryWinners[winnerIdx].name=newName;
+      await saveWeeks();
+      toast(`Glory winner updated: "${old}" → "${newName}"`,'success');
+    }
+    renderStats();
+  }
+  inp.addEventListener('blur',commit);
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();inp.blur();}if(e.key==='Escape'){inp.value=old;inp.blur();}});
 }
 
 function renderChart(){
