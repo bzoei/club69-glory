@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
 :root {
@@ -15,7 +16,7 @@
   --surface:#242840; --border:#3a3f5c;
   --text:#e8ecf8; --muted:#7a80a0;
   --accent:#6c63ff; --green:#4caf50; --red:#f44336;
-  --boss:#ce93d8; --clash:#ef9a9a;
+  --boss:#ce93d8; --clash:#ef9a9a; --lme:#81d4fa;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Exo 2',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
@@ -72,6 +73,7 @@ main{position:relative;z-index:1}
 .fbadge{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;letter-spacing:1px;padding:3px 10px;border-radius:20px}
 .boss-b{background:rgba(156,39,176,.2);color:var(--boss);border:1px solid rgba(156,39,176,.4)}
 .clash-b{background:rgba(192,57,43,.2);color:var(--clash);border:1px solid rgba(192,57,43,.4)}
+.lme-b{background:rgba(3,169,244,.2);color:var(--lme);border:1px solid rgba(3,169,244,.4)}
 .ftitle{font-weight:600;font-size:14px;flex:1}
 .fcount{font-size:12px;color:var(--muted)}
 
@@ -327,6 +329,14 @@ function initFirebase(){
   }
 }
 
+// Silent anonymous sign-in — no UI, just authenticates with Firebase
+async function ensureAuth(){
+  const auth=firebase.auth();
+  if(!auth.currentUser){
+    await auth.signInAnonymously();
+  }
+}
+
 async function fbGet(collection,docId){
   const snap=await db.collection(collection).doc(docId).get();
   return snap.exists?snap.data():null;
@@ -343,7 +353,7 @@ async function saveRoster(){try{await fbSet('glory','roster',{names:roster});}ca
 // ════════════════════════════════
 //  AUTH — hash only, no plaintext
 // ════════════════════════════════
-const _SEED=['01','ac','e0','b9','d3','dd','26','5e','4d','89','1c','2c','78','f7','df','b4','9a','06','65','16','53','ba','4e','6c','2c','2d','a9','ee','8a','5e','f0','38'].join('');
+const _SEED=['5b','44','63','09','87','5e','2e','48','87','6f','f9','7c','2e','33','bf','c0','29','1e','40','f9','d3','11','a0','9a','c9','6c','21','fc','95','1b','14','45'].join('');
 
 async function sha256(s){
   const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
@@ -352,11 +362,19 @@ async function sha256(s){
 async function getStoredHash(){try{const d=await fbGet('glory','auth');return d?d.hash:null;}catch(e){return null;}}
 async function seedHash(){try{await fbSet('glory','auth',{hash:_SEED});}catch(e){}}
 
+// Force-update hash if it doesn't match current _SEED (password was changed in code)
+async function syncHash(){
+  const stored=await getStoredHash();
+  if(stored!==_SEED){await seedHash();}
+}
+
 async function checkSession(){
   try{initFirebase();}catch(e){console.error('Firebase init error:',e);}
+  try{await ensureAuth();}catch(e){console.error('Firebase auth error:',e);}
 
   let h;
   try{
+    await syncHash(); // ensure Firebase has the current password hash
     h=await getStoredHash();
     if(!h){await seedHash();h=_SEED;}
   }catch(e){
@@ -390,11 +408,17 @@ checkSession();
 // ════════════════════════════════
 //  STATE
 // ════════════════════════════════
+// HTML escape — prevent XSS from player names / user input
+function esc(s){
+  const d=document.createElement('div');d.textContent=s;return d.innerHTML;
+}
+
 const FIGHTS=[
   {id:'boss',  label:'Boss Phase',      type:'boss', badge:'boss-b'},
   {id:'clash1',label:'Clash · Round 1', type:'clash',badge:'clash-b'},
   {id:'clash2',label:'Clash · Round 2', type:'clash',badge:'clash-b'},
   {id:'clash3',label:'Clash · Round 3', type:'clash',badge:'clash-b'},
+  {id:'lme',   label:'LME Boss',        type:'lme',  badge:'lme-b'},
 ];
 let fdata={};   // id -> {shots:[],parsed:[]}
 let merged=[];
@@ -807,20 +831,30 @@ function resolvePlayerName(name){
 function mergeAll(){
   const map={};
   const activeF=FIGHTS.filter(f=>fdata[f.id].parsed.length>0);
+  // Only count boss+clash for glory (not LME)
+  const gloryF=activeF.filter(f=>f.type!=='lme');
   FIGHTS.forEach(f=>{
     fdata[f.id].parsed.forEach(p=>{
-      // Resolve name against roster to consolidate OCR variants
       const resolved=resolvePlayerName(p.name);
       const k=resolved.toLowerCase();
-      if(!map[k])map[k]={name:resolved,total:0,boss:0,clash:0,fights:new Set()};
-      if(f.type==='boss')map[k].boss+=p.medals;else map[k].clash+=p.medals;
+      if(!map[k])map[k]={name:resolved,total:0,boss:0,clash:0,lme:0,fights:new Set(),gloryFights:new Set()};
+      if(f.type==='boss'){map[k].boss+=p.medals;}
+      else if(f.type==='clash'){map[k].clash+=p.medals;}
+      else if(f.type==='lme'){map[k].lme+=p.medals;}
+      // Total for glory = boss + clash only (LME excluded)
       map[k].total=map[k].boss+map[k].clash;
-      if(p.medals>0)map[k].fights.add(f.id);
+      if(p.medals>0){
+        map[k].fights.add(f.id);
+        if(f.type!=='lme') map[k].gloryFights.add(f.id);
+      }
     });
   });
   merged=Object.values(map).map(p=>({
-    ...p,participated:p.fights.size,totalFights:activeF.length,
-    noParticipation:p.total===0&&activeF.length>0
+    ...p,
+    participated:p.gloryFights.size,
+    totalFights:gloryF.length,
+    lmeParticipated:p.fights.has('lme')?1:0,
+    noParticipation:p.total===0&&gloryF.length>0
   })).sort((a,b)=>b.total-a.total);
 }
 
@@ -836,17 +870,18 @@ function renderResults(){
       ${kicks.length?`<div style="color:var(--red);font-size:12px">⚠ ${kicks.length} with zero medals</div>`:''}
     </div>
     <div class="tscroll"><table class="rtable">
-    <thead><tr><th>#</th><th>PLAYER</th><th>TOTAL</th><th style="color:var(--boss)">BOSS</th><th style="color:var(--clash)">CLASH</th><th>PARTICIPATION</th><th>STATUS</th></tr></thead>
+    <thead><tr><th>#</th><th>PLAYER</th><th>TOTAL</th><th style="color:var(--boss)">BOSS</th><th style="color:var(--clash)">CLASH</th><th style="color:var(--lme)">LME</th><th>PARTICIPATION</th><th>STATUS</th></tr></thead>
     <tbody>`;
   merged.forEach((p,i)=>{
     const rk=i===0?'r1':i===1?'r2':i===2?'r3':'';
     const pct=p.totalFights>0?Math.round(p.participated/p.totalFights*100):0;
     html+=`<tr>
       <td class="rk ${rk}">${i+1}</td>
-      <td style="font-weight:600">${p.name}</td>
-      <td><input class="minput" type="number" value="${p.total}" min="0" onchange="editM('${p.name.replace(/'/g,"\\'")}',this.value)"></td>
+      <td style="font-weight:600">${esc(p.name)}</td>
+      <td><input class="minput" type="number" value="${p.total}" min="0" onchange="editM('${esc(p.name).replace(/'/g,"\\'")}',this.value)"></td>
       <td style="color:var(--boss);font-weight:600">${p.boss}</td>
       <td style="color:var(--clash);font-weight:600">${p.clash}</td>
+      <td style="color:var(--lme);font-weight:600">${p.lme}</td>
       <td><div style="font-size:12px">${p.participated}/${p.totalFights}</div><div class="pbar"><div class="pbar-f" style="width:${pct}%"></div></div></td>
       <td>${p.noParticipation?'<span class="kflag">⚠ KICK?</span>':'<span style="color:var(--green);font-size:12px">✓ Active</span>'}</td>
     </tr>`;
@@ -916,11 +951,11 @@ function renderGlory(){
   const pos=['🥇','🥈','🥉'];
   let html=`<div class="glory-sec">
     <div class="glory-title">👑 Glory Members of the Week</div>
-    <div class="glory-sub">Weighted random — higher medals = higher chance. Re-roll individually or all at once.</div>
+    <div class="glory-sub">Weighted random — higher medals = higher chance. Re-roll individually or all at once. <span style="color:var(--lme)">LME medals excluded.</span></div>
     <div class="gwinners">
     ${gloryW.map((w,i)=>`<div class="gcard">
       <div class="gpos">${pos[i]}</div>
-      <div class="gname">${w.name}</div>
+      <div class="gname">${esc(w.name)}</div>
       <div class="gmed">${w.total} medals</div>
       <div class="gprob">~${w.prob}% chance</div>
       <button class="btn-reroll-one" onclick="rerollOne(${i})" title="Re-roll this slot">🔄</button>
@@ -941,7 +976,7 @@ async function saveWeek(){
   const label=document.getElementById('week-label').value.trim()||`Week ${weeks.length+1}`;
   weeks.unshift({
     id:Date.now(),label,date:new Date().toLocaleDateString(),
-    players:merged.map(p=>({name:p.name,total:p.total,boss:p.boss,clash:p.clash,participated:p.participated,totalFights:p.totalFights})),
+    players:merged.map(p=>({name:p.name,total:p.total,boss:p.boss,clash:p.clash,lme:p.lme||0,participated:p.participated,totalFights:p.totalFights})),
     gloryWinners:gloryW.map(w=>({name:w.name,medals:w.total}))
   });
   await saveWeeks();
@@ -958,7 +993,7 @@ function renderRoster(){
   if(!roster.length){c.innerHTML='<div style="color:var(--muted);font-size:12px">No players yet — names are added automatically when you scan, or add them manually.</div>';return;}
   c.innerHTML=roster.slice().sort((a,b)=>a.localeCompare(b)).map(name=>`
     <div class="rchip">
-      <span class="rchip-name" onclick="editRosterName(this,'${name.replace(/'/g,"\\'")}')\" title="Click to rename">${name}</span>
+      <span class="rchip-name" onclick="editRosterName(this,'${name.replace(/'/g,"\\'")}')\" title="Click to rename">${esc(name)}</span>
       <button onclick="removeFromRoster('${name.replace(/'/g,"\\'")}')">×</button>
     </div>`).join('');
 }
@@ -1027,7 +1062,7 @@ function renderStats(){
   if(!weeks.length)wh.innerHTML='<div class="empty">No weeks saved yet.</div>';
   else wh.innerHTML=weeks.map((w,wi)=>`
     <div class="whcard">
-      <div class="whtop"><span>🗓 ${w.label}</span>
+      <div class="whtop"><span>🗓 ${esc(w.label)}</span>
         <div style="display:flex;gap:8px;align-items:center">
           <span style="font-size:11px;color:var(--muted)">${w.date}</span>
           <button class="whdel" onclick="delWeek(${wi})">🗑</button>
@@ -1035,7 +1070,7 @@ function renderStats(){
       </div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px">${w.players.length} members · ${w.players.reduce((s,p)=>s+p.total,0).toLocaleString()} medals</div>
       <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">GLORY MEMBERS</div>
-      ${w.gloryWinners.map((g,i)=>`<div class="gbrow"><span>${['🥇','🥈','🥉'][i]}</span><span class="nm gw-edit" onclick="editGloryWinner(${wi},${i},this)" title="Click to edit">${g.name}</span><span class="mt">${g.medals} 🏅</span></div>`).join('')}
+      ${w.gloryWinners.map((g,i)=>`<div class="gbrow"><span>${['🥇','🥈','🥉'][i]}</span><span class="nm gw-edit" onclick="editGloryWinner(${wi},${i},this)" title="Click to edit">${esc(g.name)}</span><span class="mt">${g.medals} 🏅</span></div>`).join('')}
     </div>`).join('');
 
   const counts={};weeks.forEach(w=>w.gloryWinners.forEach(g=>{counts[g.name]=(counts[g.name]||0)+1;}));
@@ -1043,21 +1078,21 @@ function renderStats(){
   const hofD=document.getElementById('glory-hof');
   if(!hof.length)hofD.innerHTML='<div class="empty">No glory members yet.</div>';
   else hofD.innerHTML=`<div class="tscroll"><table><thead><tr><th>#</th><th>PLAYER</th><th>GLORY TITLES</th><th></th></tr></thead><tbody>
-    ${hof.map(([n,c],i)=>`<tr><td style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;color:${['#FFD700','#C0C0C0','#CD7F32'][i]||'var(--muted)'};width:44px">${i+1}</td><td style="font-weight:600">${n}</td><td style="color:var(--gold);font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700">${c} 👑</td><td>${'⭐'.repeat(Math.min(c,10))}</td></tr>`).join('')}
+    ${hof.map(([n,c],i)=>`<tr><td style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;color:${['#FFD700','#C0C0C0','#CD7F32'][i]||'var(--muted)'};width:44px">${i+1}</td><td style="font-weight:600">${esc(n)}</td><td style="color:var(--gold);font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700">${c} 👑</td><td>${'⭐'.repeat(Math.min(c,10))}</td></tr>`).join('')}
     </tbody></table></div>`;
 
-  const lb={};weeks.forEach(w=>w.players.forEach(p=>{if(!lb[p.name])lb[p.name]={name:p.name,total:0,weeks:0,participated:0,totalFights:0};lb[p.name].total+=p.total;lb[p.name].weeks++;lb[p.name].participated+=(p.participated||0);lb[p.name].totalFights+=(p.totalFights||0);}));
+  const lb={};weeks.forEach(w=>w.players.forEach(p=>{if(!lb[p.name])lb[p.name]={name:p.name,total:0,lme:0,weeks:0,participated:0,totalFights:0};lb[p.name].total+=p.total;lb[p.name].lme+=(p.lme||0);lb[p.name].weeks++;lb[p.name].participated+=(p.participated||0);lb[p.name].totalFights+=(p.totalFights||0);}));
   const lbs=Object.values(lb).sort((a,b)=>b.total-a.total);
   const lbD=document.getElementById('leaderboard-table');
   if(!lbs.length)lbD.innerHTML='<div class="empty">No data yet.</div>';
-  else lbD.innerHTML=`<div class="tscroll"><table><thead><tr><th>#</th><th>PLAYER</th><th>ALL-TIME MEDALS</th><th>WEEKS</th><th>AVG/WEEK</th><th>PARTICIPATION</th></tr></thead><tbody>
-    ${lbs.map((p,i)=>{const pc=p.totalFights>0?Math.round(p.participated/p.totalFights*100)+'%':'—';return `<tr><td style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;color:${['#FFD700','#C0C0C0','#CD7F32'][i]||'var(--muted)'};width:44px">${i+1}</td><td style="font-weight:600">${p.name}</td><td style="color:var(--gold);font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700">${p.total.toLocaleString()}</td><td style="color:var(--muted)">${p.weeks}</td><td style="color:var(--gold-light)">${p.weeks>0?Math.round(p.total/p.weeks):0}</td><td style="font-size:12px">${pc}</td></tr>`;}).join('')}
+  else lbD.innerHTML=`<div class="tscroll"><table><thead><tr><th>#</th><th>PLAYER</th><th>ALL-TIME MEDALS</th><th style="color:var(--lme)">LME</th><th>WEEKS</th><th>AVG/WEEK</th><th>PARTICIPATION</th></tr></thead><tbody>
+    ${lbs.map((p,i)=>{const pc=p.totalFights>0?Math.round(p.participated/p.totalFights*100)+'%':'—';return `<tr><td style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;color:${['#FFD700','#C0C0C0','#CD7F32'][i]||'var(--muted)'};width:44px">${i+1}</td><td style="font-weight:600">${esc(p.name)}</td><td style="color:var(--gold);font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700">${p.total.toLocaleString()}</td><td style="color:var(--lme);font-weight:600">${p.lme.toLocaleString()}</td><td style="color:var(--muted)">${p.weeks}</td><td style="color:var(--gold-light)">${p.weeks>0?Math.round(p.total/p.weeks):0}</td><td style="font-size:12px">${pc}</td></tr>`;}).join('')}
     </tbody></table></div>`;
 
   const sel=document.getElementById('chart-sel');
   const pls=new Set();weeks.forEach(w=>w.players.forEach(p=>pls.add(p.name)));
   sel.innerHTML='<option value="">— Select a player —</option>';
-  [...pls].sort().forEach(n=>{sel.innerHTML+=`<option value="${n}">${n}</option>`;});
+  [...pls].sort().forEach(n=>{sel.innerHTML+=`<option value="${esc(n)}">${esc(n)}</option>`;});
 }
 
 async function delWeek(wi){
@@ -1100,7 +1135,7 @@ function renderChart(){
   const gw=weeks.filter(w=>w.gloryWinners.some(g=>g.name===name));
   div.innerHTML=`
     <div style="font-size:13px;margin-bottom:12px;color:var(--muted)">
-      ${name} · All-time: <b style="color:var(--gold)">${data.reduce((s,d)=>s+d.medals,0).toLocaleString()} medals</b>
+      ${esc(name)} · All-time: <b style="color:var(--gold)">${data.reduce((s,d)=>s+d.medals,0).toLocaleString()} medals</b>
       ${gw.length?` · 👑 Glory titles: <b style="color:var(--gold)">${gw.length}</b>`:''}
     </div>
     <div class="cbars">${data.map(d=>{const h=Math.round(d.medals/max*160);return`<div class="bcol"><div class="bfill" style="height:${h}px" data-tip="${d.medals} — ${d.label}"></div><div class="blbl">${d.label.replace(/Week /,'W')}</div></div>`;}).join('')}</div>`;

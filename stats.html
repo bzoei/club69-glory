@@ -6,6 +6,7 @@
 <title>Clan Stats · Survivor.io</title>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
 :root {
@@ -117,6 +118,10 @@ const FIREBASE_CONFIG={
 
 let weeks=[];
 
+function esc(s){
+  const d=document.createElement('div');d.textContent=s;return d.innerHTML;
+}
+
 async function init(){
   try{
     const app=firebase.initializeApp(FIREBASE_CONFIG);
@@ -146,10 +151,10 @@ function renderStats(){
   if(!weeks.length)wh.innerHTML='<div class="empty">No weeks saved yet.</div>';
   else wh.innerHTML=weeks.map(w=>`
     <div class="whcard">
-      <div class="whtop"><span>🗓 ${w.label}</span><span style="font-size:11px;color:var(--muted)">${w.date}</span></div>
+      <div class="whtop"><span>🗓 ${esc(w.label)}</span><span style="font-size:11px;color:var(--muted)">${w.date}</span></div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px">${w.players.length} members · ${w.players.reduce((s,p)=>s+p.total,0).toLocaleString()} medals</div>
       <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">GLORY MEMBERS</div>
-      ${w.gloryWinners.map((g,i)=>`<div class="gbrow"><span>${['🥇','🥈','🥉'][i]}</span><span class="nm">${g.name}</span><span class="mt">${g.medals} 🏅</span></div>`).join('')}
+      ${w.gloryWinners.map((g,i)=>`<div class="gbrow"><span>${['🥇','🥈','🥉'][i]}</span><span class="nm">${esc(g.name)}</span><span class="mt">${g.medals} 🏅</span></div>`).join('')}
     </div>`).join('');
 
   const counts={};weeks.forEach(w=>w.gloryWinners.forEach(g=>{counts[g.name]=(counts[g.name]||0)+1;}));
@@ -157,21 +162,21 @@ function renderStats(){
   const hofD=document.getElementById('glory-hof');
   if(!hof.length)hofD.innerHTML='<div class="empty">No glory members yet.</div>';
   else hofD.innerHTML=`<div class="tscroll"><table><thead><tr><th>#</th><th>PLAYER</th><th>GLORY TITLES</th><th></th></tr></thead><tbody>
-    ${hof.map(([n,c],i)=>`<tr><td style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;color:${['#FFD700','#C0C0C0','#CD7F32'][i]||'var(--muted)'};width:44px">${i+1}</td><td style="font-weight:600">${n}</td><td style="color:var(--gold);font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700">${c} 👑</td><td>${'⭐'.repeat(Math.min(c,10))}</td></tr>`).join('')}
+    ${hof.map(([n,c],i)=>`<tr><td style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;color:${['#FFD700','#C0C0C0','#CD7F32'][i]||'var(--muted)'};width:44px">${i+1}</td><td style="font-weight:600">${esc(n)}</td><td style="color:var(--gold);font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700">${c} 👑</td><td>${'⭐'.repeat(Math.min(c,10))}</td></tr>`).join('')}
     </tbody></table></div>`;
 
-  const lb={};weeks.forEach(w=>w.players.forEach(p=>{if(!lb[p.name])lb[p.name]={name:p.name,total:0,weeks:0,participated:0,totalFights:0};lb[p.name].total+=p.total;lb[p.name].weeks++;lb[p.name].participated+=(p.participated||0);lb[p.name].totalFights+=(p.totalFights||0);}));
+  const lb={};weeks.forEach(w=>w.players.forEach(p=>{if(!lb[p.name])lb[p.name]={name:p.name,total:0,lme:0,weeks:0,participated:0,totalFights:0};lb[p.name].total+=p.total;lb[p.name].lme+=(p.lme||0);lb[p.name].weeks++;lb[p.name].participated+=(p.participated||0);lb[p.name].totalFights+=(p.totalFights||0);}));
   const lbs=Object.values(lb).sort((a,b)=>b.total-a.total);
   const lbD=document.getElementById('leaderboard-table');
   if(!lbs.length)lbD.innerHTML='<div class="empty">No data yet.</div>';
-  else lbD.innerHTML=`<div class="tscroll"><table><thead><tr><th>#</th><th>PLAYER</th><th>ALL-TIME MEDALS</th><th>WEEKS</th><th>AVG/WEEK</th><th>PARTICIPATION</th></tr></thead><tbody>
-    ${lbs.map((p,i)=>{const pc=p.totalFights>0?Math.round(p.participated/p.totalFights*100)+'%':'—';return `<tr><td style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;color:${['#FFD700','#C0C0C0','#CD7F32'][i]||'var(--muted)'};width:44px">${i+1}</td><td style="font-weight:600">${p.name}</td><td style="color:var(--gold);font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700">${p.total.toLocaleString()}</td><td style="color:var(--muted)">${p.weeks}</td><td style="color:var(--gold-light)">${p.weeks>0?Math.round(p.total/p.weeks):0}</td><td style="font-size:12px">${pc}</td></tr>`;}).join('')}
+  else lbD.innerHTML=`<div class="tscroll"><table><thead><tr><th>#</th><th>PLAYER</th><th>ALL-TIME MEDALS</th><th style="color:#81d4fa">LME</th><th>WEEKS</th><th>AVG/WEEK</th><th>PARTICIPATION</th></tr></thead><tbody>
+    ${lbs.map((p,i)=>{const pc=p.totalFights>0?Math.round(p.participated/p.totalFights*100)+'%':'—';return `<tr><td style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;color:${['#FFD700','#C0C0C0','#CD7F32'][i]||'var(--muted)'};width:44px">${i+1}</td><td style="font-weight:600">${esc(p.name)}</td><td style="color:var(--gold);font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700">${p.total.toLocaleString()}</td><td style="color:#81d4fa;font-weight:600">${p.lme.toLocaleString()}</td><td style="color:var(--muted)">${p.weeks}</td><td style="color:var(--gold-light)">${p.weeks>0?Math.round(p.total/p.weeks):0}</td><td style="font-size:12px">${pc}</td></tr>`;}).join('')}
     </tbody></table></div>`;
 
   const sel=document.getElementById('chart-sel');
   const pls=new Set();weeks.forEach(w=>w.players.forEach(p=>pls.add(p.name)));
   sel.innerHTML='<option value="">— Select a player —</option>';
-  [...pls].sort().forEach(n=>{sel.innerHTML+=`<option value="${n}">${n}</option>`;});
+  [...pls].sort().forEach(n=>{sel.innerHTML+=`<option value="${esc(n)}">${esc(n)}</option>`;});
 }
 
 function renderChart(){
@@ -184,7 +189,7 @@ function renderChart(){
   const gw=weeks.filter(w=>w.gloryWinners.some(g=>g.name===name));
   div.innerHTML=`
     <div style="font-size:13px;margin-bottom:12px;color:var(--muted)">
-      ${name} · All-time: <b style="color:var(--gold)">${data.reduce((s,d)=>s+d.medals,0).toLocaleString()} medals</b>
+      ${esc(name)} · All-time: <b style="color:var(--gold)">${data.reduce((s,d)=>s+d.medals,0).toLocaleString()} medals</b>
       ${gw.length?` · 👑 Glory titles: <b style="color:var(--gold)">${gw.length}</b>`:''}
     </div>
     <div class="cbars">${data.map(d=>{const h=Math.round(d.medals/max*160);return`<div class="bcol"><div class="bfill" style="height:${h}px" data-tip="${d.medals} — ${d.label}"></div><div class="blbl">${d.label.replace(/Week /,'W')}</div></div>`;}).join('')}</div>`;
