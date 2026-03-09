@@ -16,7 +16,7 @@
   --surface:#242840; --border:#3a3f5c;
   --text:#e8ecf8; --muted:#7a80a0;
   --accent:#6c63ff; --green:#4caf50; --red:#f44336;
-  --boss:#ce93d8; --clash:#ef9a9a; --lme:#81d4fa;
+  --boss:#ce93d8; --clash:#ef9a9a;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Exo 2',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
@@ -73,7 +73,6 @@ main{position:relative;z-index:1}
 .fbadge{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;letter-spacing:1px;padding:3px 10px;border-radius:20px}
 .boss-b{background:rgba(156,39,176,.2);color:var(--boss);border:1px solid rgba(156,39,176,.4)}
 .clash-b{background:rgba(192,57,43,.2);color:var(--clash);border:1px solid rgba(192,57,43,.4)}
-.lme-b{background:rgba(3,169,244,.2);color:var(--lme);border:1px solid rgba(3,169,244,.4)}
 .ftitle{font-weight:600;font-size:14px;flex:1}
 .fcount{font-size:12px;color:var(--muted)}
 
@@ -418,7 +417,6 @@ const FIGHTS=[
   {id:'clash1',label:'Clash · Round 1', type:'clash',badge:'clash-b'},
   {id:'clash2',label:'Clash · Round 2', type:'clash',badge:'clash-b'},
   {id:'clash3',label:'Clash · Round 3', type:'clash',badge:'clash-b'},
-  {id:'lme',   label:'LME Boss',        type:'lme',  badge:'lme-b'},
 ];
 let fdata={};   // id -> {shots:[],parsed:[]}
 let merged=[];
@@ -831,21 +829,20 @@ function resolvePlayerName(name){
 function mergeAll(){
   const map={};
   const activeF=FIGHTS.filter(f=>fdata[f.id].parsed.length>0);
-  // Only count boss+clash for glory (not LME)
-  const gloryF=activeF.filter(f=>f.type!=='lme');
+  // Only count clash for glory (boss tracked separately)
+  const gloryF=activeF.filter(f=>f.type==='clash');
   FIGHTS.forEach(f=>{
     fdata[f.id].parsed.forEach(p=>{
       const resolved=resolvePlayerName(p.name);
       const k=resolved.toLowerCase();
-      if(!map[k])map[k]={name:resolved,total:0,boss:0,clash:0,lme:0,fights:new Set(),gloryFights:new Set()};
+      if(!map[k])map[k]={name:resolved,total:0,boss:0,clash:0,fights:new Set(),gloryFights:new Set()};
       if(f.type==='boss'){map[k].boss+=p.medals;}
       else if(f.type==='clash'){map[k].clash+=p.medals;}
-      else if(f.type==='lme'){map[k].lme+=p.medals;}
-      // Total for glory = boss + clash only (LME excluded)
-      map[k].total=map[k].boss+map[k].clash;
+      // Total for glory = clash only (boss tracked separately)
+      map[k].total=map[k].clash;
       if(p.medals>0){
         map[k].fights.add(f.id);
-        if(f.type!=='lme') map[k].gloryFights.add(f.id);
+        if(f.type==='clash') map[k].gloryFights.add(f.id);
       }
     });
   });
@@ -853,7 +850,7 @@ function mergeAll(){
     ...p,
     participated:p.gloryFights.size,
     totalFights:gloryF.length,
-    lmeParticipated:p.fights.has('lme')?1:0,
+    bossParticipated:p.fights.has('boss')?1:0,
     noParticipation:p.total===0&&gloryF.length>0
   })).sort((a,b)=>b.total-a.total);
 }
@@ -870,7 +867,7 @@ function renderResults(){
       ${kicks.length?`<div style="color:var(--red);font-size:12px">⚠ ${kicks.length} with zero medals</div>`:''}
     </div>
     <div class="tscroll"><table class="rtable">
-    <thead><tr><th>#</th><th>PLAYER</th><th>TOTAL</th><th style="color:var(--boss)">BOSS</th><th style="color:var(--clash)">CLASH</th><th style="color:var(--lme)">LME</th><th>PARTICIPATION</th><th>STATUS</th></tr></thead>
+    <thead><tr><th>#</th><th>PLAYER</th><th>TOTAL</th><th style="color:var(--boss)">BOSS</th><th style="color:var(--clash)">CLASH</th><th>PARTICIPATION</th><th>STATUS</th></tr></thead>
     <tbody>`;
   merged.forEach((p,i)=>{
     const rk=i===0?'r1':i===1?'r2':i===2?'r3':'';
@@ -881,7 +878,6 @@ function renderResults(){
       <td><input class="minput" type="number" value="${p.total}" min="0" onchange="editM('${esc(p.name).replace(/'/g,"\\'")}',this.value)"></td>
       <td style="color:var(--boss);font-weight:600">${p.boss}</td>
       <td style="color:var(--clash);font-weight:600">${p.clash}</td>
-      <td style="color:var(--lme);font-weight:600">${p.lme}</td>
       <td><div style="font-size:12px">${p.participated}/${p.totalFights}</div><div class="pbar"><div class="pbar-f" style="width:${pct}%"></div></div></td>
       <td>${p.noParticipation?'<span class="kflag">⚠ KICK?</span>':'<span style="color:var(--green);font-size:12px">✓ Active</span>'}</td>
     </tr>`;
@@ -951,7 +947,7 @@ function renderGlory(){
   const pos=['🥇','🥈','🥉'];
   let html=`<div class="glory-sec">
     <div class="glory-title">👑 Glory Members of the Week</div>
-    <div class="glory-sub">Weighted random — higher medals = higher chance. Re-roll individually or all at once. <span style="color:var(--lme)">LME medals excluded.</span></div>
+    <div class="glory-sub">Weighted random — higher medals = higher chance. Re-roll individually or all at once. <span style="color:var(--boss)">Boss Phase medals excluded.</span></div>
     <div class="gwinners">
     ${gloryW.map((w,i)=>`<div class="gcard">
       <div class="gpos">${pos[i]}</div>
@@ -976,7 +972,7 @@ async function saveWeek(){
   const label=document.getElementById('week-label').value.trim()||`Week ${weeks.length+1}`;
   weeks.unshift({
     id:Date.now(),label,date:new Date().toLocaleDateString(),
-    players:merged.map(p=>({name:p.name,total:p.total,boss:p.boss,clash:p.clash,lme:p.lme||0,participated:p.participated,totalFights:p.totalFights})),
+    players:merged.map(p=>({name:p.name,total:p.total,boss:p.boss,clash:p.clash,participated:p.participated,totalFights:p.totalFights})),
     gloryWinners:gloryW.map(w=>({name:w.name,medals:w.total}))
   });
   await saveWeeks();
@@ -1081,12 +1077,12 @@ function renderStats(){
     ${hof.map(([n,c],i)=>`<tr><td style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;color:${['#FFD700','#C0C0C0','#CD7F32'][i]||'var(--muted)'};width:44px">${i+1}</td><td style="font-weight:600">${esc(n)}</td><td style="color:var(--gold);font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700">${c} 👑</td><td>${'⭐'.repeat(Math.min(c,10))}</td></tr>`).join('')}
     </tbody></table></div>`;
 
-  const lb={};weeks.forEach(w=>w.players.forEach(p=>{if(!lb[p.name])lb[p.name]={name:p.name,total:0,lme:0,weeks:0,participated:0,totalFights:0};lb[p.name].total+=p.total;lb[p.name].lme+=(p.lme||0);lb[p.name].weeks++;lb[p.name].participated+=(p.participated||0);lb[p.name].totalFights+=(p.totalFights||0);}));
+  const lb={};weeks.forEach(w=>w.players.forEach(p=>{if(!lb[p.name])lb[p.name]={name:p.name,total:0,boss:0,weeks:0,participated:0,totalFights:0};lb[p.name].total+=p.total;lb[p.name].boss+=(p.boss||0);lb[p.name].weeks++;lb[p.name].participated+=(p.participated||0);lb[p.name].totalFights+=(p.totalFights||0);}));
   const lbs=Object.values(lb).sort((a,b)=>b.total-a.total);
   const lbD=document.getElementById('leaderboard-table');
   if(!lbs.length)lbD.innerHTML='<div class="empty">No data yet.</div>';
-  else lbD.innerHTML=`<div class="tscroll"><table><thead><tr><th>#</th><th>PLAYER</th><th>ALL-TIME MEDALS</th><th style="color:var(--lme)">LME</th><th>WEEKS</th><th>AVG/WEEK</th><th>PARTICIPATION</th></tr></thead><tbody>
-    ${lbs.map((p,i)=>{const pc=p.totalFights>0?Math.round(p.participated/p.totalFights*100)+'%':'—';return `<tr><td style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;color:${['#FFD700','#C0C0C0','#CD7F32'][i]||'var(--muted)'};width:44px">${i+1}</td><td style="font-weight:600">${esc(p.name)}</td><td style="color:var(--gold);font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700">${p.total.toLocaleString()}</td><td style="color:var(--lme);font-weight:600">${p.lme.toLocaleString()}</td><td style="color:var(--muted)">${p.weeks}</td><td style="color:var(--gold-light)">${p.weeks>0?Math.round(p.total/p.weeks):0}</td><td style="font-size:12px">${pc}</td></tr>`;}).join('')}
+  else lbD.innerHTML=`<div class="tscroll"><table><thead><tr><th>#</th><th>PLAYER</th><th>ALL-TIME MEDALS</th><th style="color:var(--boss)">BOSS</th><th>WEEKS</th><th>AVG/WEEK</th><th>PARTICIPATION</th></tr></thead><tbody>
+    ${lbs.map((p,i)=>{const pc=p.totalFights>0?Math.round(p.participated/p.totalFights*100)+'%':'—';return `<tr><td style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;color:${['#FFD700','#C0C0C0','#CD7F32'][i]||'var(--muted)'};width:44px">${i+1}</td><td style="font-weight:600">${esc(p.name)}</td><td style="color:var(--gold);font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700">${p.total.toLocaleString()}</td><td style="color:var(--boss);font-weight:600">${p.boss.toLocaleString()}</td><td style="color:var(--muted)">${p.weeks}</td><td style="color:var(--gold-light)">${p.weeks>0?Math.round(p.total/p.weeks):0}</td><td style="font-size:12px">${pc}</td></tr>`;}).join('')}
     </tbody></table></div>`;
 
   const sel=document.getElementById('chart-sel');
