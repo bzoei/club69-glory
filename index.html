@@ -192,7 +192,16 @@ main{position:relative;z-index:1}
 .cbars{display:flex;align-items:flex-end;gap:5px;height:180px;padding-top:16px}
 .bcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end;min-width:26px}
 .bfill{width:100%;background:linear-gradient(to top,var(--accent),rgba(108,99,255,.3));border-radius:4px 4px 0 0;min-height:2px;position:relative;cursor:pointer}
+.bfill.boss-bar{background:linear-gradient(to top,var(--boss),rgba(206,147,216,.25))}
 .bfill:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--bg4);border:1px solid var(--border);padding:3px 8px;border-radius:6px;font-size:11px;white-space:nowrap;color:var(--text);z-index:10}
+.bcol-dual{flex:1;display:flex;gap:2px;align-items:flex-end;height:100%;justify-content:flex-end;min-width:30px}
+.bcol-dual .bhalf{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+.bcol-dual-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end;min-width:30px}
+.chart-legend{display:flex;gap:16px;font-size:11px;color:var(--muted);margin-bottom:8px}
+.chart-legend span{display:flex;align-items:center;gap:5px}
+.chart-legend .ldot{width:10px;height:10px;border-radius:3px}
+.chart-legend .ldot.clash{background:var(--accent)}
+.chart-legend .ldot.boss{background:var(--boss)}
 .blbl{font-size:9px;color:var(--muted);text-align:center;overflow:hidden;width:100%;white-space:nowrap;text-overflow:ellipsis}
 
 /* ── TOAST ── */
@@ -1125,16 +1134,19 @@ function renderChart(){
   const name=document.getElementById('chart-sel').value;
   const div=document.getElementById('player-chart');
   if(!name){div.innerHTML='';return;}
-  const data=[...weeks].reverse().map(w=>{const p=w.players.find(x=>x.name===name);return{label:w.label,medals:p?p.total:0};});
+  const data=[...weeks].reverse().map(w=>{const p=w.players.find(x=>x.name===name);return{label:w.label,clash:p?p.total:0,boss:p?(p.boss||0):0};});
   if(!data.length){div.innerHTML='<div class="empty">No data.</div>';return;}
-  const max=Math.max(...data.map(d=>d.medals),1);
+  const max=Math.max(...data.map(d=>Math.max(d.clash,d.boss)),1);
   const gw=weeks.filter(w=>w.gloryWinners.some(g=>g.name===name));
+  const totalClash=data.reduce((s,d)=>s+d.clash,0);
+  const totalBoss=data.reduce((s,d)=>s+d.boss,0);
   div.innerHTML=`
     <div style="font-size:13px;margin-bottom:12px;color:var(--muted)">
-      ${esc(name)} · All-time: <b style="color:var(--gold)">${data.reduce((s,d)=>s+d.medals,0).toLocaleString()} medals</b>
+      ${esc(name)} · Clash: <b style="color:var(--gold)">${totalClash.toLocaleString()}</b> · Boss: <b style="color:var(--boss)">${totalBoss.toLocaleString()}</b>
       ${gw.length?` · 👑 Glory titles: <b style="color:var(--gold)">${gw.length}</b>`:''}
     </div>
-    <div class="cbars">${data.map(d=>{const h=Math.round(d.medals/max*160);return`<div class="bcol"><div class="bfill" style="height:${h}px" data-tip="${d.medals} — ${d.label}"></div><div class="blbl">${d.label.replace(/Week /,'W')}</div></div>`;}).join('')}</div>`;
+    <div class="chart-legend"><span><span class="ldot clash"></span>Clash medals</span><span><span class="ldot boss"></span>Boss medals</span></div>
+    <div class="cbars">${data.map(d=>{const hc=Math.round(d.clash/max*160);const hb=Math.round(d.boss/max*160);return`<div class="bcol-dual-wrap"><div class="bcol-dual"><div class="bhalf"><div class="bfill" style="height:${hc}px" data-tip="${d.clash} clash — ${d.label}"></div></div><div class="bhalf"><div class="bfill boss-bar" style="height:${hb}px" data-tip="${d.boss} boss — ${d.label}"></div></div></div><div class="blbl">${d.label.replace(/Week /,'W')}</div></div>`;}).join('')}</div>`;
 }
 
 // ════════════════════════════════
