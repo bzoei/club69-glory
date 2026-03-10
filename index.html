@@ -194,14 +194,24 @@ main{position:relative;z-index:1}
 .bfill{width:100%;background:linear-gradient(to top,var(--accent),rgba(108,99,255,.3));border-radius:4px 4px 0 0;min-height:2px;position:relative;cursor:pointer}
 .bfill.boss-bar{background:linear-gradient(to top,var(--boss),rgba(206,147,216,.25))}
 .bfill:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--bg4);border:1px solid var(--border);padding:3px 8px;border-radius:6px;font-size:11px;white-space:nowrap;color:var(--text);z-index:10}
-.bcol-dual{flex:1;display:flex;gap:2px;align-items:flex-end;height:100%;justify-content:flex-end;min-width:30px}
-.bcol-dual .bhalf{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
-.bcol-dual-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end;min-width:30px}
 .chart-legend{display:flex;gap:16px;font-size:11px;color:var(--muted);margin-bottom:8px}
 .chart-legend span{display:flex;align-items:center;gap:5px}
 .chart-legend .ldot{width:10px;height:10px;border-radius:3px}
 .chart-legend .ldot.clash{background:var(--accent)}
 .chart-legend .ldot.boss{background:var(--boss)}
+.chart-cluster{display:flex;gap:24px;margin-top:8px}
+.chart-cluster .cluster-section{flex:1;min-width:0}
+.chart-cluster .cluster-label{font-size:11px;font-weight:700;letter-spacing:.5px;margin-bottom:6px;text-align:center}
+.lb-name{font-weight:600;cursor:pointer;transition:color .2s}
+.lb-name:hover{color:var(--gold)}
+.player-chart-inline{overflow:hidden;transition:max-height .3s ease,padding .3s ease;max-height:0;padding:0 14px}
+.player-chart-inline.open{max-height:400px;padding:14px}
+.whedit{background:none;border:none;color:var(--muted);cursor:pointer;transition:color .2s;font-size:12px}
+.whedit:hover{color:var(--accent)}
+.pct-green{color:#4caf50;font-weight:600}
+.pct-yellow{color:#ffc107;font-weight:600}
+.pct-orange{color:#ff9800;font-weight:600}
+.pct-red{color:#f44336;font-weight:600}
 .blbl{font-size:9px;color:var(--muted);text-align:center;overflow:hidden;width:100%;white-space:nowrap;text-overflow:ellipsis}
 
 /* ── TOAST ── */
@@ -298,15 +308,8 @@ main{position:relative;z-index:1}
   <div class="whgrid" id="week-history-grid"></div>
   <div class="sec-title">👑 Glory Hall of Fame</div>
   <div class="dbt" id="glory-hof"></div>
-  <div class="sec-title">📊 All-Time Leaderboard</div>
+  <div class="sec-title">📊 All-Time Leaderboard <span style="font-size:12px;color:var(--muted);font-weight:400;font-family:'Exo 2',sans-serif">(click a name to see history)</span></div>
   <div class="dbt" id="leaderboard-table"></div>
-  <div class="sec-title">📈 Player Medal History</div>
-  <div class="cwrap">
-    <select class="psel" id="chart-sel" onchange="renderChart()">
-      <option value="">— Select a player —</option>
-    </select>
-    <div id="player-chart"></div>
-  </div>
 </div>
 
 </main>
@@ -887,7 +890,7 @@ function renderResults(){
       <td><input class="minput" type="number" value="${p.total}" min="0" onchange="editM('${esc(p.name).replace(/'/g,"\\'")}',this.value)"></td>
       <td style="color:var(--boss);font-weight:600">${p.boss}</td>
       <td style="color:var(--clash);font-weight:600">${p.clash}</td>
-      <td><div style="font-size:12px">${p.participated}/${p.totalFights}</div><div class="pbar"><div class="pbar-f" style="width:${pct}%"></div></div></td>
+      <td><div class="${pctClass(pct)}" style="font-size:12px">${p.participated}/${p.totalFights} (${pct}%)</div><div class="pbar"><div class="pbar-f" style="width:${pct}%"></div></div></td>
       <td>${p.noParticipation?'<span class="kflag">⚠ KICK?</span>':'<span style="color:var(--green);font-size:12px">✓ Active</span>'}</td>
     </tr>`;
   });
@@ -1067,9 +1070,10 @@ function renderStats(){
   if(!weeks.length)wh.innerHTML='<div class="empty">No weeks saved yet.</div>';
   else wh.innerHTML=weeks.map((w,wi)=>`
     <div class="whcard">
-      <div class="whtop"><span>🗓 ${esc(w.label)}</span>
+      <div class="whtop"><span class="whlabel" onclick="editWeekLabel(${wi},this)" title="Click to rename">🗓 ${esc(w.label)}</span>
         <div style="display:flex;gap:8px;align-items:center">
           <span style="font-size:11px;color:var(--muted)">${w.date}</span>
+          <button class="whedit" onclick="editWeekLabel(${wi},this.closest('.whtop').querySelector('.whlabel'))" title="Rename">✏️</button>
           <button class="whdel" onclick="delWeek(${wi})">🗑</button>
         </div>
       </div>
@@ -1090,19 +1094,31 @@ function renderStats(){
   const lbs=Object.values(lb).sort((a,b)=>b.total-a.total);
   const lbD=document.getElementById('leaderboard-table');
   if(!lbs.length)lbD.innerHTML='<div class="empty">No data yet.</div>';
-  else lbD.innerHTML=`<div class="tscroll"><table><thead><tr><th>#</th><th>PLAYER</th><th>ALL-TIME MEDALS</th><th style="color:var(--boss)">BOSS</th><th>WEEKS</th><th>AVG/WEEK</th><th>PARTICIPATION</th></tr></thead><tbody>
-    ${lbs.map((p,i)=>{const pc=p.totalFights>0?Math.round(p.participated/p.totalFights*100)+'%':'—';return `<tr><td style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;color:${['#FFD700','#C0C0C0','#CD7F32'][i]||'var(--muted)'};width:44px">${i+1}</td><td style="font-weight:600">${esc(p.name)}</td><td style="color:var(--gold);font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700">${p.total.toLocaleString()}</td><td style="color:var(--boss);font-weight:600">${p.boss.toLocaleString()}</td><td style="color:var(--muted)">${p.weeks}</td><td style="color:var(--gold-light)">${p.weeks>0?Math.round(p.total/p.weeks):0}</td><td style="font-size:12px">${pc}</td></tr>`;}).join('')}
-    </tbody></table></div>`;
+  else{const cols=7;lbD.innerHTML=`<div class="tscroll"><table><thead><tr><th>#</th><th>PLAYER</th><th>ALL-TIME MEDALS</th><th style="color:var(--boss)">BOSS</th><th>WEEKS</th><th>AVG/WEEK</th><th>PARTICIPATION</th></tr></thead><tbody>
+    ${lbs.map((p,i)=>{const pv=p.totalFights>0?Math.round(p.participated/p.totalFights*100):-1;const pc=pv>=0?pv+'%':'—';const pcCls=pv>=0?pctClass(pv):'';return `<tr><td style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;color:${['#FFD700','#C0C0C0','#CD7F32'][i]||'var(--muted)'};width:44px">${i+1}</td><td class="lb-name" onclick="toggleChart('${esc(p.name).replace(/'/g,"\\'")}')">${esc(p.name)}</td><td style="color:var(--gold);font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700">${p.total.toLocaleString()}</td><td style="color:var(--boss);font-weight:600">${p.boss.toLocaleString()}</td><td style="color:var(--muted)">${p.weeks}</td><td style="color:var(--gold-light)">${p.weeks>0?Math.round(p.total/p.weeks):0}</td><td class="${pcCls}" style="font-size:12px">${pc}</td></tr><tr><td colspan="${cols}" style="padding:0;border:none"><div class="player-chart-inline" id="chart-${esc(p.name)}" data-player="${esc(p.name)}"><div class="chart-content"></div></div></td></tr>`;}).join('')}
+    </tbody></table></div>`;}
 
-  const sel=document.getElementById('chart-sel');
-  const pls=new Set();weeks.forEach(w=>w.players.forEach(p=>pls.add(p.name)));
-  sel.innerHTML='<option value="">— Select a player —</option>';
-  [...pls].sort().forEach(n=>{sel.innerHTML+=`<option value="${esc(n)}">${esc(n)}</option>`;});
 }
 
 async function delWeek(wi){
   if(!confirm('Delete this week?'))return;
   weeks.splice(wi,1);await saveWeeks();renderStats();toast('Week deleted.','info');
+}
+
+function editWeekLabel(wi,el){
+  const old=weeks[wi].label;
+  const inp=document.createElement('input');
+  inp.type='text';inp.value=old;
+  inp.style.cssText='background:var(--bg);border:1px solid var(--accent);border-radius:4px;color:var(--gold);font-family:Rajdhani,sans-serif;font-size:14px;font-weight:700;padding:2px 6px;width:'+Math.max(100,old.length*10)+'px;outline:none;';
+  el.replaceWith(inp);
+  inp.focus();inp.select();
+  async function commit(){
+    const v=inp.value.trim();
+    if(v && v!==old){weeks[wi].label=v;await saveWeeks();toast(`Week renamed: "${old}" → "${v}"`,'success');}
+    renderStats();
+  }
+  inp.addEventListener('blur',commit);
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();inp.blur();}if(e.key==='Escape'){inp.value=old;inp.blur();}});
 }
 
 async function editGloryWinner(weekIdx, winnerIdx, el){
@@ -1130,23 +1146,45 @@ async function editGloryWinner(weekIdx, winnerIdx, el){
   inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();inp.blur();}if(e.key==='Escape'){inp.value=old;inp.blur();}});
 }
 
-function renderChart(){
-  const name=document.getElementById('chart-sel').value;
-  const div=document.getElementById('player-chart');
-  if(!name){div.innerHTML='';return;}
+function pctClass(pct){
+  if(pct>=90)return 'pct-green';
+  if(pct>=70)return 'pct-yellow';
+  if(pct>=50)return 'pct-orange';
+  return 'pct-red';
+}
+
+let openChart=null;
+function toggleChart(name){
+  const prev=document.querySelector('.player-chart-inline.open');
+  if(prev){prev.classList.remove('open');if(prev.dataset.player===name){openChart=null;return;}}
+  openChart=name;
+  const row=document.getElementById('chart-'+CSS.escape(name));
+  if(!row)return;
+  const div=row.querySelector('.chart-content');
   const data=[...weeks].reverse().map(w=>{const p=w.players.find(x=>x.name===name);return{label:w.label,clash:p?p.total:0,boss:p?(p.boss||0):0};});
-  if(!data.length){div.innerHTML='<div class="empty">No data.</div>';return;}
-  const max=Math.max(...data.map(d=>Math.max(d.clash,d.boss)),1);
+  if(!data.length){div.innerHTML='<div class="empty">No data.</div>';row.classList.add('open');return;}
+  const maxC=Math.max(...data.map(d=>d.clash),1);
+  const maxB=Math.max(...data.map(d=>d.boss),1);
   const gw=weeks.filter(w=>w.gloryWinners.some(g=>g.name===name));
   const totalClash=data.reduce((s,d)=>s+d.clash,0);
   const totalBoss=data.reduce((s,d)=>s+d.boss,0);
   div.innerHTML=`
-    <div style="font-size:13px;margin-bottom:12px;color:var(--muted)">
-      ${esc(name)} · Clash: <b style="color:var(--gold)">${totalClash.toLocaleString()}</b> · Boss: <b style="color:var(--boss)">${totalBoss.toLocaleString()}</b>
+    <div style="font-size:13px;margin-bottom:10px;color:var(--muted)">
+      Clash: <b style="color:var(--gold)">${totalClash.toLocaleString()}</b> · Boss: <b style="color:var(--boss)">${totalBoss.toLocaleString()}</b>
       ${gw.length?` · 👑 Glory titles: <b style="color:var(--gold)">${gw.length}</b>`:''}
     </div>
     <div class="chart-legend"><span><span class="ldot clash"></span>Clash medals</span><span><span class="ldot boss"></span>Boss medals</span></div>
-    <div class="cbars">${data.map(d=>{const hc=Math.round(d.clash/max*160);const hb=Math.round(d.boss/max*160);return`<div class="bcol-dual-wrap"><div class="bcol-dual"><div class="bhalf"><div class="bfill" style="height:${hc}px" data-tip="${d.clash} clash — ${d.label}"></div></div><div class="bhalf"><div class="bfill boss-bar" style="height:${hb}px" data-tip="${d.boss} boss — ${d.label}"></div></div></div><div class="blbl">${d.label.replace(/Week /,'W')}</div></div>`;}).join('')}</div>`;
+    <div class="chart-cluster">
+      <div class="cluster-section">
+        <div class="cluster-label" style="color:var(--accent)">CLASH</div>
+        <div class="cbars">${data.map(d=>{const h=Math.round(d.clash/maxC*140);return`<div class="bcol"><div class="bfill" style="height:${h}px" data-tip="${d.clash} — ${d.label}"></div><div class="blbl">${d.label.replace(/Week /,'W')}</div></div>`;}).join('')}</div>
+      </div>
+      <div class="cluster-section">
+        <div class="cluster-label" style="color:var(--boss)">BOSS</div>
+        <div class="cbars">${data.map(d=>{const h=Math.round(d.boss/maxB*140);return`<div class="bcol"><div class="bfill boss-bar" style="height:${h}px" data-tip="${d.boss} — ${d.label}"></div><div class="blbl">${d.label.replace(/Week /,'W')}</div></div>`;}).join('')}</div>
+      </div>
+    </div>`;
+  row.classList.add('open');
 }
 
 // ════════════════════════════════
