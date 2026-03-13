@@ -205,7 +205,7 @@ function interpolateBoss(weeks){
   firstWeek.players.forEach(p=>{
     if((p.boss||0)===0){
       const hist=bossHistory[p.name];
-      if(hist&&hist.length){
+      if(hist&&hist.length>=2){
         p.boss=median(hist);
         p._bossInterpolated=true;
       }
