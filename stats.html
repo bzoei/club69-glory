@@ -179,8 +179,8 @@ function median(arr){
 }
 
 // Interpolate missing boss values for the first Boss Phase week
-// If a player has boss=0 in week 0 (first week) but has boss data in later weeks,
-// estimate using their clash ratio from weeks where they have boss data
+// Only uses a player's own boss medals from other weeks (median).
+// If they have no boss data in any other week, no interpolation is done.
 function interpolateBoss(weeks){
   if(weeks.length<2) return weeks;
   // Work on chronological order (oldest first)
@@ -189,28 +189,24 @@ function interpolateBoss(weeks){
   // Check if first week has mostly zero boss values (Boss Phase wasn't tracked)
   const bossValues=firstWeek.players.map(p=>p.boss||0);
   const nonZeroBoss=bossValues.filter(v=>v>0).length;
-  // If more than half have boss=0, treat as missing
+  // If more than half have boss>0, boss was tracked — nothing to interpolate
   if(nonZeroBoss > firstWeek.players.length * 0.5) return weeks;
-  // Build ratio map from later weeks: boss/clash ratio per player
-  const ratios={};
+  // Build map of each player's boss medal values from later weeks
+  const bossHistory={};
   for(let i=1;i<ordered.length;i++){
     ordered[i].players.forEach(p=>{
-      if(p.total>0 && (p.boss||0)>0){
-        if(!ratios[p.name]) ratios[p.name]=[];
-        ratios[p.name].push(p.boss/p.total);
+      if((p.boss||0)>0){
+        if(!bossHistory[p.name]) bossHistory[p.name]=[];
+        bossHistory[p.name].push(p.boss);
       }
     });
   }
-  // Also compute global median ratio
-  const allRatios=Object.values(ratios).flat();
-  const globalRatio=allRatios.length?median(allRatios):0;
-  // Interpolate
+  // Interpolate using only that player's own boss medals from other weeks
   firstWeek.players.forEach(p=>{
-    if((p.boss||0)===0 && p.total>0){
-      const pRatios=ratios[p.name];
-      const ratio=pRatios&&pRatios.length?median(pRatios):globalRatio;
-      if(ratio>0){
-        p.boss=Math.round(p.total*ratio);
+    if((p.boss||0)===0){
+      const hist=bossHistory[p.name];
+      if(hist&&hist.length>=2){
+        p.boss=median(hist);
         p._bossInterpolated=true;
       }
     }
