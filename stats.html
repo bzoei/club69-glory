@@ -80,6 +80,8 @@ header{position:sticky;top:0;z-index:100;background:rgba(10,12,20,.96);border-bo
 .dbt tbody tr:hover{background:var(--bg4)}
 .dbt tbody tr:last-child{border-bottom:none}
 .dbt td{padding:7px 10px;font-size:12px}
+tr.inactive-row{opacity:.45}
+tr.inactive-row td{text-decoration:line-through;text-decoration-color:var(--muted)}
 .tscroll{overflow-x:auto}
 
 .cbars{display:flex;align-items:flex-end;gap:4px;height:150px;padding-top:12px}
@@ -226,12 +228,14 @@ function renderStats(){
 
 function renderLeaderboard(){
   const lb={};weeks.forEach(w=>w.players.forEach(p=>{if(!lb[p.name])lb[p.name]={name:p.name,total:0,boss:0,weeks:0,participated:0,totalFights:0};if(!p.exempt){lb[p.name].total+=p.total;lb[p.name].boss+=(p.boss||0);lb[p.name].weeks++;lb[p.name].participated+=(p.participated||0);lb[p.name].totalFights+=(p.totalFights||0);}}));
+  // Players in the most recent week are "active"; everyone else is inactive (left the clan)
+  const latestNames=new Set(weeks.length?weeks[0].players.map(p=>p.name):[]);
   const lbs=Object.values(lb).sort((a,b)=>b.total-a.total);
   const lbD=document.getElementById('leaderboard-table');
   if(!lbs.length){lbD.innerHTML='<div class="empty">No data yet.</div>';return;}
   const cols=7;
   lbD.innerHTML=`<div class="tscroll"><table><thead><tr><th>#</th><th>PLAYER</th><th>ALL-TIME</th><th style="color:var(--boss)">BOSS</th><th>WKS</th><th>AVG/WK</th><th>PART.</th></tr></thead><tbody>
-    ${lbs.map((p,i)=>{const pv=p.totalFights>0?Math.round(p.participated/p.totalFights*100):-1;const pc=pv>=0?pv+'%':'—';const pcCls=pv>=0?pctClass(pv):'';return `<tr><td style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;color:${['#FFD700','#C0C0C0','#CD7F32'][i]||'var(--muted)'};width:32px">${i+1}</td><td class="lb-name" onclick="toggleChart('${esc(p.name).replace(/'/g,"\\'")}')">${esc(p.name)}</td><td style="color:var(--gold);font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700">${p.total.toLocaleString()}</td><td style="color:var(--boss);font-weight:600;font-size:12px">${p.boss.toLocaleString()}</td><td style="color:var(--muted);font-size:12px">${p.weeks}</td><td style="color:var(--gold-light);font-size:12px">${p.weeks>0?Math.round(p.total/p.weeks):0}</td><td class="${pcCls}" style="font-size:11px">${pc}</td></tr><tr><td colspan="${cols}" style="padding:0;border:none"><div class="player-chart-inline" id="chart-${esc(p.name)}" data-player="${esc(p.name)}"><div class="chart-content"></div></div></td></tr>`;}).join('')}
+    ${lbs.map((p,i)=>{const inactive=!latestNames.has(p.name);const pv=p.totalFights>0?Math.round(p.participated/p.totalFights*100):-1;const pc=pv>=0?pv+'%':'—';const pcCls=pv>=0?pctClass(pv):'';return `<tr class="${inactive?'inactive-row':''}"><td style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;color:${['#FFD700','#C0C0C0','#CD7F32'][i]||'var(--muted)'};width:32px">${i+1}</td><td class="lb-name" onclick="toggleChart('${esc(p.name).replace(/'/g,"\\'")}')">${esc(p.name)}</td><td style="color:var(--gold);font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700">${p.total.toLocaleString()}</td><td style="color:var(--boss);font-weight:600;font-size:12px">${p.boss.toLocaleString()}</td><td style="color:var(--muted);font-size:12px">${p.weeks}</td><td style="color:var(--gold-light);font-size:12px">${p.weeks>0?Math.round(p.total/p.weeks):0}</td><td class="${pcCls}" style="font-size:11px">${pc}</td></tr><tr><td colspan="${cols}" style="padding:0;border:none"><div class="player-chart-inline" id="chart-${esc(p.name)}" data-player="${esc(p.name)}"><div class="chart-content"></div></div></td></tr>`;}).join('')}
     </tbody></table></div>`;
 }
 
