@@ -86,14 +86,12 @@ header{position:sticky;top:0;z-index:100;background:rgba(10,12,20,.96);border-bo
 .bcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end;min-width:22px}
 .bfill{width:100%;background:linear-gradient(to top,var(--accent),rgba(108,99,255,.3));border-radius:3px 3px 0 0;min-height:2px;position:relative;cursor:pointer}
 .bfill.boss-bar{background:linear-gradient(to top,var(--boss),rgba(206,147,216,.25))}
-.bfill.interpolated{opacity:.5;background:linear-gradient(to top,var(--boss),rgba(206,147,216,.15));border:1px dashed rgba(206,147,216,.4);border-bottom:none}
 .bfill:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--bg4);border:1px solid var(--border);padding:3px 8px;border-radius:6px;font-size:11px;white-space:nowrap;color:var(--text);z-index:10}
 .chart-legend{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-bottom:6px}
 .chart-legend span{display:flex;align-items:center;gap:4px}
 .chart-legend .ldot{width:9px;height:9px;border-radius:2px}
 .chart-legend .ldot.clash{background:var(--accent)}
 .chart-legend .ldot.boss{background:var(--boss)}
-.chart-legend .ldot.interp{background:var(--boss);opacity:.5;border:1px dashed rgba(206,147,216,.6)}
 .chart-cluster{display:flex;gap:20px;margin-top:6px}
 .chart-cluster .cluster-section{flex:1;min-width:0}
 .chart-cluster .cluster-label{font-size:10px;font-weight:700;letter-spacing:.5px;margin-bottom:4px;text-align:center}
@@ -178,42 +176,6 @@ function median(arr){
   return s.length%2?s[m]:Math.round((s[m-1]+s[m])/2);
 }
 
-// Interpolate missing boss values for the first Boss Phase week
-// Only uses a player's own boss medals from other weeks (median).
-// If they have no boss data in any other week, no interpolation is done.
-function interpolateBoss(weeks){
-  if(weeks.length<2) return weeks;
-  // Work on chronological order (oldest first)
-  const ordered=[...weeks].reverse();
-  const firstWeek=ordered[0];
-  // Check if first week has mostly zero boss values (Boss Phase wasn't tracked)
-  const bossValues=firstWeek.players.map(p=>p.boss||0);
-  const nonZeroBoss=bossValues.filter(v=>v>0).length;
-  // If more than half have boss>0, boss was tracked — nothing to interpolate
-  if(nonZeroBoss > firstWeek.players.length * 0.5) return weeks;
-  // Build map of each player's boss medal values from later weeks
-  const bossHistory={};
-  for(let i=1;i<ordered.length;i++){
-    ordered[i].players.forEach(p=>{
-      if((p.boss||0)>0){
-        if(!bossHistory[p.name]) bossHistory[p.name]=[];
-        bossHistory[p.name].push(p.boss);
-      }
-    });
-  }
-  // Interpolate using only that player's own boss medals from other weeks
-  firstWeek.players.forEach(p=>{
-    if((p.boss||0)===0){
-      const hist=bossHistory[p.name];
-      if(hist&&hist.length>=2){
-        p.boss=median(hist);
-        p._bossInterpolated=true;
-      }
-    }
-  });
-  return weeks;
-}
-
 async function init(){
   try{
     const app=firebase.initializeApp(FIREBASE_CONFIG);
@@ -225,7 +187,6 @@ async function init(){
     document.getElementById('loading').innerHTML='<span style="color:var(--red)">Could not load data. Please try again later.</span>';
     return;
   }
-  weeks=interpolateBoss(weeks);
   document.getElementById('loading').style.display='none';
   document.getElementById('content').style.display='block';
   renderStats();
@@ -461,7 +422,7 @@ function toggleChart(name){
   const div=row.querySelector('.chart-content');
   const data=[...weeks].reverse().map(w=>{
     const p=w.players.find(x=>x.name===name);
-    return {label:w.label,clash:p?p.total:0,boss:p?(p.boss||0):0,bossInterpolated:p?!!p._bossInterpolated:false};
+    return {label:w.label,clash:p?p.total:0,boss:p?(p.boss||0):0};
   });
   if(!data.length){div.innerHTML='<div class="empty">No data.</div>';row.classList.add('open');return;}
   const maxC=Math.max(...data.map(d=>d.clash),1);
@@ -469,7 +430,6 @@ function toggleChart(name){
   const gw=weeks.filter(w=>w.gloryWinners.some(g=>g.name===name));
   const totalClash=data.reduce((s,d)=>s+d.clash,0);
   const totalBoss=data.reduce((s,d)=>s+d.boss,0);
-  const hasInterp=data.some(d=>d.bossInterpolated);
   div.innerHTML=`
     <div style="font-size:12px;margin-bottom:8px;color:var(--muted)">
       Clash: <b style="color:var(--gold)">${totalClash.toLocaleString()}</b> · Boss: <b style="color:var(--boss)">${totalBoss.toLocaleString()}</b>
@@ -478,7 +438,6 @@ function toggleChart(name){
     <div class="chart-legend">
       <span><span class="ldot clash"></span>Clash</span>
       <span><span class="ldot boss"></span>Boss</span>
-      ${hasInterp?'<span><span class="ldot interp"></span>Estimated</span>':''}
     </div>
     <div class="chart-cluster">
       <div class="cluster-section">
@@ -487,7 +446,7 @@ function toggleChart(name){
       </div>
       <div class="cluster-section">
         <div class="cluster-label" style="color:var(--boss)">BOSS</div>
-        <div class="cbars">${data.map(d=>{const h=Math.round(d.boss/maxB*120);const interpCls=d.bossInterpolated?' interpolated':'';return`<div class="bcol"><div class="bfill boss-bar${interpCls}" style="height:${h}px" data-tip="${d.boss}${d.bossInterpolated?' (est.)':''} — ${d.label}"></div><div class="blbl">${d.label.replace(/Week /,'W').replace(/ ·.*/,'')}</div></div>`;}).join('')}</div>
+        <div class="cbars">${data.map(d=>{const h=Math.round(d.boss/maxB*120);return`<div class="bcol"><div class="bfill boss-bar" style="height:${h}px" data-tip="${d.boss} — ${d.label}"></div><div class="blbl">${d.label.replace(/Week /,'W').replace(/ ·.*/,'')}</div></div>`;}).join('')}</div>
       </div>
     </div>`;
   row.classList.add('open');
