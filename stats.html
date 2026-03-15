@@ -264,7 +264,7 @@ function renderStats(){
 }
 
 function renderLeaderboard(){
-  const lb={};weeks.forEach(w=>w.players.forEach(p=>{if(!lb[p.name])lb[p.name]={name:p.name,total:0,boss:0,weeks:0,participated:0,totalFights:0};lb[p.name].total+=p.total;lb[p.name].boss+=(p.boss||0);lb[p.name].weeks++;lb[p.name].participated+=(p.participated||0);lb[p.name].totalFights+=(p.totalFights||0);}));
+  const lb={};weeks.forEach(w=>w.players.forEach(p=>{if(!lb[p.name])lb[p.name]={name:p.name,total:0,boss:0,weeks:0,participated:0,totalFights:0};if(!p.exempt){lb[p.name].total+=p.total;lb[p.name].boss+=(p.boss||0);lb[p.name].weeks++;lb[p.name].participated+=(p.participated||0);lb[p.name].totalFights+=(p.totalFights||0);}}));
   const lbs=Object.values(lb).sort((a,b)=>b.total-a.total);
   const lbD=document.getElementById('leaderboard-table');
   if(!lbs.length){lbD.innerHTML='<div class="empty">No data yet.</div>';return;}
@@ -337,7 +337,10 @@ function updateCompare(){
     const weekCells=orderedWeeks.map((_,i)=>{
       const v1=p1Vals[i]!=null?p1Vals[i]:null;
       const v2=cVals[i]!=null?cVals[i]:null;
-      if(v1===null)return `<td style="color:var(--muted);font-size:11px;text-align:center">—</td>`;
+      if(v1===null){
+        const isExempt=p1Stats[i]&&p1Stats[i].exempt;
+        return `<td style="color:var(--muted);font-size:11px;text-align:center" ${isExempt?'title="Exempted this week"':''}>${isExempt?'E':'—'}</td>`;
+      }
       const cls=v2!==null?(v1>v2?'val-above':v1<v2?'val-below':'val-equal'):'';
       const display=m.isPct?(v1+'%'):v1.toLocaleString();
       return `<td class="val-player ${cls}" style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;text-align:center">${display}</td>`;
@@ -426,17 +429,19 @@ function renderClanMedianOverview(){
 function getPlayerWeeklyStats(name,orderedWeeks){
   return orderedWeeks.map(w=>{
     const p=w.players.find(x=>x.name===name);
-    if(!p)return {clash:null,boss:null,participation:null};
+    if(!p)return {clash:null,boss:null,participation:null,exempt:false};
+    if(p.exempt)return {clash:null,boss:null,participation:null,exempt:true};
     const pct=p.totalFights>0?Math.round(p.participated/p.totalFights*100):null;
-    return {clash:p.total,boss:p.boss||0,participation:pct};
+    return {clash:p.total,boss:p.boss||0,participation:pct,exempt:false};
   });
 }
 
 function getClanMedians(orderedWeeks){
   return orderedWeeks.map(w=>{
-    const clashVals=w.players.map(p=>p.total).filter(v=>v>0);
-    const bossVals=w.players.map(p=>p.boss||0).filter(v=>v>0);
-    const pctVals=w.players.filter(p=>p.totalFights>0).map(p=>Math.round(p.participated/p.totalFights*100));
+    const active=w.players.filter(p=>!p.exempt);
+    const clashVals=active.map(p=>p.total).filter(v=>v>0);
+    const bossVals=active.map(p=>p.boss||0).filter(v=>v>0);
+    const pctVals=active.filter(p=>p.totalFights>0).map(p=>Math.round(p.participated/p.totalFights*100));
     return {
       clash:median(clashVals),
       boss:median(bossVals),

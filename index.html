@@ -141,6 +141,11 @@ main{position:relative;z-index:1}
 .pbar{height:4px;background:var(--bg4);border-radius:2px;margin-top:5px;width:70px}
 .pbar-f{height:100%;border-radius:2px;background:var(--green)}
 .kflag{background:rgba(244,67,54,.15);border:1px solid rgba(244,67,54,.3);color:var(--red);font-size:10px;padding:2px 7px;border-radius:4px;font-weight:700}
+.exempt-btn{background:transparent;border:1px solid var(--border);color:var(--muted);font-size:10px;padding:3px 8px;border-radius:4px;cursor:pointer;font-family:'Exo 2',sans-serif;font-weight:600;transition:all .15s}
+.exempt-btn:hover{border-color:var(--accent);color:var(--accent)}
+.exempt-btn.active{background:rgba(108,99,255,.18);border-color:var(--accent);color:var(--accent)}
+tr.exempt-row{opacity:.5}
+tr.exempt-row td{text-decoration:line-through;text-decoration-color:var(--muted)}
 .minput{width:70px;background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;padding:5px 8px;outline:none;text-align:right;transition:border-color .2s}
 .minput:focus{border-color:var(--gold)}
 
@@ -858,13 +863,22 @@ function mergeAll(){
       }
     });
   });
+  // Preserve existing exemption state across re-merges
+  const prevExempt=new Set(merged.filter(p=>p.exempt).map(p=>p.name.toLowerCase()));
   merged=Object.values(map).map(p=>({
     ...p,
     participated:p.gloryFights.size,
     totalFights:gloryF.length,
     bossParticipated:p.fights.has('boss')?1:0,
-    noParticipation:p.total===0&&gloryF.length>0
+    noParticipation:p.total===0&&gloryF.length>0,
+    exempt:prevExempt.has(p.name.toLowerCase())
   })).sort((a,b)=>b.total-a.total);
+}
+
+function toggleExempt(name){
+  const p=merged.find(x=>x.name===name);
+  if(p) p.exempt=!p.exempt;
+  renderResults();
 }
 
 function renderResults(){
@@ -879,12 +893,12 @@ function renderResults(){
       ${kicks.length?`<div style="color:var(--red);font-size:12px">⚠ ${kicks.length} with zero medals</div>`:''}
     </div>
     <div class="tscroll"><table class="rtable">
-    <thead><tr><th>#</th><th>PLAYER</th><th>TOTAL</th><th style="color:var(--boss)">BOSS</th><th style="color:var(--clash)">CLASH</th><th>PARTICIPATION</th><th>STATUS</th></tr></thead>
+    <thead><tr><th>#</th><th>PLAYER</th><th>TOTAL</th><th style="color:var(--boss)">BOSS</th><th style="color:var(--clash)">CLASH</th><th>PARTICIPATION</th><th>STATUS</th><th>EXEMPT</th></tr></thead>
     <tbody>`;
   merged.forEach((p,i)=>{
     const rk=i===0?'r1':i===1?'r2':i===2?'r3':'';
     const pct=p.totalFights>0?Math.round(p.participated/p.totalFights*100):0;
-    html+=`<tr>
+    html+=`<tr class="${p.exempt?'exempt-row':''}">
       <td class="rk ${rk}">${i+1}</td>
       <td style="font-weight:600">${esc(p.name)}</td>
       <td><input class="minput" type="number" value="${p.total}" min="0" onchange="editM('${esc(p.name).replace(/'/g,"\\'")}',this.value)"></td>
@@ -892,6 +906,7 @@ function renderResults(){
       <td style="color:var(--clash);font-weight:600">${p.clash}</td>
       <td><div class="${pctClass(pct)}" style="font-size:12px">${p.participated}/${p.totalFights} (${pct}%)</div><div class="pbar"><div class="pbar-f" style="width:${pct}%"></div></div></td>
       <td>${p.noParticipation?'<span class="kflag">⚠ KICK?</span>':'<span style="color:var(--green);font-size:12px">✓ Active</span>'}</td>
+      <td><button class="exempt-btn ${p.exempt?'active':''}" onclick="toggleExempt('${esc(p.name).replace(/'/g,"\\'")}')">${p.exempt?'Exempted':'Exempt'}</button></td>
     </tr>`;
   });
   html+=`</tbody></table></div></div>`;
@@ -984,7 +999,7 @@ async function saveWeek(){
   const label=document.getElementById('week-label').value.trim()||`Week ${weeks.length+1}`;
   weeks.unshift({
     id:Date.now(),label,date:new Date().toLocaleDateString(),
-    players:merged.map(p=>({name:p.name,total:p.total,boss:p.boss,clash:p.clash,participated:p.participated,totalFights:p.totalFights})),
+    players:merged.map(p=>({name:p.name,total:p.total,boss:p.boss,clash:p.clash,participated:p.participated,totalFights:p.totalFights,exempt:!!p.exempt})),
     gloryWinners:gloryW.map(w=>({name:w.name,medals:w.total}))
   });
   await saveWeeks();
@@ -1090,7 +1105,7 @@ function renderStats(){
     ${hof.map(([n,c],i)=>`<tr><td style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;color:${['#FFD700','#C0C0C0','#CD7F32'][i]||'var(--muted)'};width:44px">${i+1}</td><td style="font-weight:600">${esc(n)}</td><td style="color:var(--gold);font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700">${c} 👑</td><td>${'⭐'.repeat(Math.min(c,10))}</td></tr>`).join('')}
     </tbody></table></div>`;
 
-  const lb={};weeks.forEach(w=>w.players.forEach(p=>{if(!lb[p.name])lb[p.name]={name:p.name,total:0,boss:0,weeks:0,participated:0,totalFights:0};lb[p.name].total+=p.total;lb[p.name].boss+=(p.boss||0);lb[p.name].weeks++;lb[p.name].participated+=(p.participated||0);lb[p.name].totalFights+=(p.totalFights||0);}));
+  const lb={};weeks.forEach(w=>w.players.forEach(p=>{if(!lb[p.name])lb[p.name]={name:p.name,total:0,boss:0,weeks:0,participated:0,totalFights:0};if(!p.exempt){lb[p.name].total+=p.total;lb[p.name].boss+=(p.boss||0);lb[p.name].weeks++;lb[p.name].participated+=(p.participated||0);lb[p.name].totalFights+=(p.totalFights||0);}}));
   const lbs=Object.values(lb).sort((a,b)=>b.total-a.total);
   const lbD=document.getElementById('leaderboard-table');
   if(!lbs.length)lbD.innerHTML='<div class="empty">No data yet.</div>';
