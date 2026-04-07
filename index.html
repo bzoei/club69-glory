@@ -287,10 +287,11 @@ tr.inactive-row td{text-decoration:line-through;text-decoration-color:var(--mute
   <div class="wbar">
     <div>
       <label>Week Label</label>
-      <input type="text" id="week-label" placeholder="e.g. Week 12 · Jan 2025">
+      <input type="text" id="week-label" placeholder="e.g. Week 14 - 2026">
     </div>
     <div class="sp"></div>
     <button class="btn-glory" id="btn-glory" onclick="runGlory()" disabled>✨ SELECT GLORY MEMBERS</button>
+    <button class="btn-glory" style="background:linear-gradient(135deg,#6c63ff,#3f37c9)" onclick="randomRoll()">🎲 RANDOM ROLL</button>
   </div>
 
   <div class="fight-grid" id="fight-grid"></div>
@@ -518,6 +519,17 @@ async function init(){
   }
   buildCards();
   prewarmOCR();
+  // Auto-fill week label with last passed ISO week
+  const wl=document.getElementById('week-label');
+  if(wl && !wl.value){
+    const now=new Date();
+    const jan4=new Date(now.getFullYear(),0,4);
+    const start=new Date(jan4);start.setDate(jan4.getDate()-(jan4.getDay()||7)+1);
+    const weekNum=Math.floor((now-start)/(7*864e5))+1;
+    const yr=weekNum<=0?now.getFullYear()-1:now.getFullYear();
+    const wn=weekNum<=0?52:weekNum;
+    wl.value=`Week ${wn} - ${yr}`;
+  }
   toast('✓ Data synced!','success');
 }
 function showPage(id){
@@ -960,6 +972,24 @@ function runGlory(){
   renderGlory();
 }
 
+function randomRoll(){
+  const pool=roster.filter(n=>!isGloryExempt(n));
+  if(pool.length<3){toast('Need ≥3 roster members (excl. exempt)!','error');return;}
+  const shuffled=[...pool].sort(()=>Math.random()-0.5);
+  gloryW=shuffled.slice(0,3).map(name=>({name,total:0,prob:0}));
+  renderGlory(true);
+}
+
+function randomRerollOne(slot){
+  const pool=roster.filter(n=>!isGloryExempt(n));
+  const otherNames=gloryW.filter((_,i)=>i!==slot).map(w=>w.name.toLowerCase());
+  const eligible=pool.filter(n=>!otherNames.includes(n.toLowerCase()));
+  if(!eligible.length){toast('No other eligible players!','error');return;}
+  const pick=eligible[Math.floor(Math.random()*eligible.length)];
+  gloryW[slot]={name:pick,total:0,prob:0};
+  renderGlory(true);
+}
+
 function rerollOne(slot){
   const el=getGloryPool();
   // Exclude the other two winners from the pool
@@ -972,22 +1002,24 @@ function rerollOne(slot){
   renderGlory();
 }
 
-function renderGlory(){
+function renderGlory(isRandom){
   const pos=['🥇','🥈','🥉'];
+  const subtitle=isRandom
+    ?'🎲 Random roll — equal chance for all roster members. No medal data this week.'
+    :'Weighted random — higher medals = higher chance. Re-roll individually or all at once. <span style="color:var(--boss)">Boss Phase medals excluded.</span>';
   let html=`<div class="glory-sec">
     <div class="glory-title">👑 Glory Members of the Week</div>
-    <div class="glory-sub">Weighted random — higher medals = higher chance. Re-roll individually or all at once. <span style="color:var(--boss)">Boss Phase medals excluded.</span></div>
+    <div class="glory-sub">${subtitle}</div>
     <div class="gwinners">
     ${gloryW.map((w,i)=>`<div class="gcard">
       <div class="gpos">${pos[i]}</div>
       <div class="gname">${esc(w.name)}</div>
-      <div class="gmed">${w.total} medals</div>
-      <div class="gprob">~${w.prob}% chance</div>
-      <button class="btn-reroll-one" onclick="rerollOne(${i})" title="Re-roll this slot">🔄</button>
+      ${isRandom?'':`<div class="gmed">${w.total} medals</div><div class="gprob">~${w.prob}% chance</div>`}
+      <button class="btn-reroll-one" onclick="${isRandom?`randomRerollOne(${i})`:`rerollOne(${i})`}" title="Re-roll this slot">🔄</button>
     </div>`).join('')}
     </div>
     <div class="gbtns">
-      <button class="btn-reroll" onclick="runGlory()">🔄 Re-roll All</button>
+      <button class="btn-reroll" onclick="${isRandom?'randomRoll()':'runGlory()'}">🔄 Re-roll All</button>
       <button class="btn-save" id="btn-save" onclick="saveWeek()">💾 Save this Week</button>
     </div></div>`;
   document.getElementById('glory-area').innerHTML=html;
@@ -998,7 +1030,8 @@ function renderGlory(){
 //  SAVE WEEK
 // ════════════════════════════════
 async function saveWeek(){
-  const label=document.getElementById('week-label').value.trim()||`Week ${weeks.length+1}`;
+  const wlEl=document.getElementById('week-label');
+  const label=wlEl.value.trim()||wlEl.placeholder||`Week ${weeks.length+1}`;
   weeks.unshift({
     id:Date.now(),label,date:new Date().toLocaleDateString(),
     players:merged.map(p=>({name:p.name,total:p.total,boss:p.boss,clash:p.clash,participated:p.participated,totalFights:p.totalFights,exempt:!!p.exempt})),
