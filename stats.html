@@ -141,6 +141,9 @@ tr.inactive-row td{text-decoration:line-through;text-decoration-color:var(--mute
 
     <div class="sec-title">📅 Weekly History</div>
     <div class="whgrid" id="week-history-grid"></div>
+    <div id="week-history-toggle" style="text-align:center;margin:-10px 0 18px 0;display:none">
+      <button onclick="toggleWeekHistory()" id="wh-toggle-btn" style="background:var(--bg4);border:1px solid var(--border);color:var(--gold);font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;padding:8px 22px;border-radius:8px;cursor:pointer;letter-spacing:.5px;transition:border-color .2s">▼ Show all weeks</button>
+    </div>
     <div class="sec-title">👑 Glory Hall of Fame</div>
     <div class="dbt" id="glory-hof"></div>
     <div class="sec-title">📊 All-Time Leaderboard <span style="font-size:11px;color:var(--muted);font-weight:400;font-family:'Exo 2',sans-serif">(click a name to see history)</span></div>
@@ -194,6 +197,30 @@ async function init(){
   renderStats();
 }
 
+const WEEK_LIMIT=3;
+
+function renderWeekCards(list){
+  document.getElementById('week-history-grid').innerHTML=list.map(w=>`
+    <div class="whcard">
+      <div class="whtop"><span>🗓 ${esc(w.label)}</span><span style="font-size:11px;color:var(--muted)">${w.date}</span></div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${w.players.length} members · ${w.players.reduce((s,p)=>s+p.total,0).toLocaleString()} medals</div>
+      <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:5px">GLORY MEMBERS</div>
+      ${w.gloryWinners.map((g,i)=>`<div class="gbrow"><span>${['🥇','🥈','🥉'][i]}</span><span class="nm">${esc(g.name)}</span><span class="mt">${g.medals} 🏅</span></div>`).join('')}
+    </div>`).join('');
+}
+
+function toggleWeekHistory(){
+  window._whExpanded=!window._whExpanded;
+  const btn=document.getElementById('wh-toggle-btn');
+  if(window._whExpanded){
+    renderWeekCards(weeks);
+    btn.textContent='▲ Show recent only';
+  }else{
+    renderWeekCards(weeks.slice(0,WEEK_LIMIT));
+    btn.textContent='▼ Show all '+weeks.length+' weeks';
+  }
+}
+
 function renderStats(){
   const allP=new Set();let totM=0;
   weeks.forEach(w=>w.players.forEach(p=>{allP.add(p.name);totM+=p.total;}));
@@ -206,14 +233,15 @@ function renderStats(){
   renderComparePanel();
 
   const wh=document.getElementById('week-history-grid');
+  const WEEK_LIMIT=3;
+  window._whExpanded=false;
   if(!weeks.length)wh.innerHTML='<div class="empty">No weeks saved yet.</div>';
-  else wh.innerHTML=weeks.map(w=>`
-    <div class="whcard">
-      <div class="whtop"><span>🗓 ${esc(w.label)}</span><span style="font-size:11px;color:var(--muted)">${w.date}</span></div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${w.players.length} members · ${w.players.reduce((s,p)=>s+p.total,0).toLocaleString()} medals</div>
-      <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:5px">GLORY MEMBERS</div>
-      ${w.gloryWinners.map((g,i)=>`<div class="gbrow"><span>${['🥇','🥈','🥉'][i]}</span><span class="nm">${esc(g.name)}</span><span class="mt">${g.medals} 🏅</span></div>`).join('')}
-    </div>`).join('');
+  else renderWeekCards(weeks.slice(0,WEEK_LIMIT));
+  const toggleWrap=document.getElementById('week-history-toggle');
+  if(weeks.length>WEEK_LIMIT){
+    toggleWrap.style.display='block';
+    document.getElementById('wh-toggle-btn').textContent='▼ Show all '+weeks.length+' weeks';
+  }else toggleWrap.style.display='none';
 
   const counts={};weeks.forEach(w=>w.gloryWinners.forEach(g=>{counts[g.name]=(counts[g.name]||0)+1;}));
   const hof=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
