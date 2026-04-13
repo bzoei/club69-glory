@@ -866,9 +866,9 @@ function mergeAll(){
     fdata[f.id].parsed.forEach(p=>{
       const resolved=resolvePlayerName(p.name);
       const k=resolved.toLowerCase();
-      if(!map[k])map[k]={name:resolved,total:0,boss:0,clash:0,fights:new Set(),gloryFights:new Set()};
+      if(!map[k])map[k]={name:resolved,total:0,boss:0,clash:0,fights:new Set(),gloryFights:new Set(),clashAppearances:new Set()};
       if(f.type==='boss'){map[k].boss+=p.medals;}
-      else if(f.type==='clash'){map[k].clash+=p.medals;}
+      else if(f.type==='clash'){map[k].clash+=p.medals;map[k].clashAppearances.add(f.id);}
       // Total for glory = clash only (boss tracked separately)
       map[k].total=map[k].clash;
       if(p.medals>0){
@@ -883,6 +883,7 @@ function mergeAll(){
     ...p,
     participated:p.gloryFights.size,
     totalFights:gloryF.length,
+    appearedAll:gloryF.length>0&&p.clashAppearances.size===gloryF.length,
     bossParticipated:p.fights.has('boss')?1:0,
     noParticipation:p.total===0&&gloryF.length>0,
     exempt:prevExempt.has(p.name.toLowerCase())
@@ -948,8 +949,7 @@ function isGloryExempt(name){
 }
 
 function getGloryPool(){
-  return merged.filter(p=>p.total>0 && !isGloryExempt(p.name)
-    && p.totalFights>0 && p.participated===p.totalFights);
+  return merged.filter(p=>p.total>0 && !isGloryExempt(p.name) && p.appearedAll);
 }
 
 function gloryWeight(p){
