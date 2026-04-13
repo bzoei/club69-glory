@@ -948,25 +948,31 @@ function isGloryExempt(name){
 }
 
 function getGloryPool(){
-  return merged.filter(p=>p.total>0 && !isGloryExempt(p.name));
+  return merged.filter(p=>p.total>0 && !isGloryExempt(p.name)
+    && p.totalFights>0 && p.participated===p.totalFights);
+}
+
+function gloryWeight(p){
+  const pct=p.totalFights>0?p.participated/p.totalFights:0;
+  return p.total*(1+pct);
 }
 
 function weightedPick(pool){
-  const t=pool.reduce((s,p)=>s+p.total,0);
+  const t=pool.reduce((s,p)=>s+gloryWeight(p),0);
   let r=Math.random()*t;
-  for(const p of pool){r-=p.total;if(r<=0)return p;}
+  for(const p of pool){r-=gloryWeight(p);if(r<=0)return p;}
   return pool[pool.length-1];
 }
 
 function runGlory(){
   const el=getGloryPool();
-  if(el.length<3){toast('Need ≥3 players with medals!','error');return;}
-  const tot=el.reduce((s,p)=>s+p.total,0);
+  if(el.length<3){toast('Need ≥3 players with medals who participated in all clash fights!','error');return;}
+  const tot=el.reduce((s,p)=>s+gloryWeight(p),0);
   const pool=[...el];
   gloryW=[];
   for(let i=0;i<3;i++){
     const pick=weightedPick(pool);
-    gloryW.push({...pick, prob:Math.round(pick.total/tot*1000)/10});
+    gloryW.push({...pick, prob:Math.round(gloryWeight(pick)/tot*1000)/10});
     pool.splice(pool.indexOf(pick),1);
   }
   renderGlory();
@@ -996,9 +1002,9 @@ function rerollOne(slot){
   const otherNames=gloryW.filter((_,i)=>i!==slot).map(w=>w.name.toLowerCase());
   const pool=el.filter(p=>!otherNames.includes(p.name.toLowerCase()));
   if(!pool.length){toast('No other eligible players!','error');return;}
-  const tot=el.reduce((s,p)=>s+p.total,0);
+  const tot=el.reduce((s,p)=>s+gloryWeight(p),0);
   const pick=weightedPick(pool);
-  gloryW[slot]={...pick, prob:Math.round(pick.total/tot*1000)/10};
+  gloryW[slot]={...pick, prob:Math.round(gloryWeight(pick)/tot*1000)/10};
   renderGlory();
 }
 
@@ -1006,7 +1012,7 @@ function renderGlory(isRandom){
   const pos=['🥇','🥈','🥉'];
   const subtitle=isRandom
     ?'🎲 Random roll — equal chance for all roster members. No medal data this week.'
-    :'Weighted random — higher medals = higher chance. Re-roll individually or all at once. <span style="color:var(--boss)">Boss Phase medals excluded.</span>';
+    :'Weighted random — only members who participated in all 3 clash fights are eligible. Higher medals &amp; participation % = higher chance. <span style="color:var(--boss)">Boss Phase medals excluded.</span>';
   let html=`<div class="glory-sec">
     <div class="glory-title">👑 Glory Members of the Week</div>
     <div class="glory-sub">${subtitle}</div>
