@@ -866,9 +866,9 @@ function mergeAll(){
     fdata[f.id].parsed.forEach(p=>{
       const resolved=resolvePlayerName(p.name);
       const k=resolved.toLowerCase();
-      if(!map[k])map[k]={name:resolved,total:0,boss:0,clash:0,fights:new Set(),gloryFights:new Set(),clashAppearances:new Set()};
+      if(!map[k])map[k]={name:resolved,total:0,boss:0,clash:0,fights:new Set(),gloryFights:new Set()};
       if(f.type==='boss'){map[k].boss+=p.medals;}
-      else if(f.type==='clash'){map[k].clash+=p.medals;map[k].clashAppearances.add(f.id);}
+      else if(f.type==='clash'){map[k].clash+=p.medals;}
       // Total for glory = clash only (boss tracked separately)
       map[k].total=map[k].clash;
       if(p.medals>0){
@@ -883,7 +883,6 @@ function mergeAll(){
     ...p,
     participated:p.gloryFights.size,
     totalFights:gloryF.length,
-    appearedAll:gloryF.length>0&&p.clashAppearances.size===gloryF.length,
     bossParticipated:p.fights.has('boss')?1:0,
     noParticipation:p.total===0&&gloryF.length>0,
     exempt:prevExempt.has(p.name.toLowerCase())
@@ -949,11 +948,26 @@ function isGloryExempt(name){
 }
 
 function getGloryPool(){
-  return merged.filter(p=>p.total>0 && !isGloryExempt(p.name) && p.appearedAll);
+  return merged.filter(p=>p.total>0 && !isGloryExempt(p.name)
+    && p.totalFights>0 && p.participated===p.totalFights);
+}
+
+function getMeanPct(name){
+  let part=0,tot=0;
+  const n=name.toLowerCase();
+  // Historical saved weeks
+  weeks.forEach(w=>{
+    const pl=w.players.find(x=>x.name.toLowerCase()===n);
+    if(pl&&!pl.exempt){part+=(pl.participated||0);tot+=(pl.totalFights||0);}
+  });
+  // Current week (not yet saved)
+  const cur=merged.find(x=>x.name.toLowerCase()===n);
+  if(cur){part+=cur.participated;tot+=cur.totalFights;}
+  return tot>0?part/tot:0;
 }
 
 function gloryWeight(p){
-  const pct=p.totalFights>0?p.participated/p.totalFights:0;
+  const pct=getMeanPct(p.name);
   return p.total*(1+pct);
 }
 
@@ -1012,7 +1026,7 @@ function renderGlory(isRandom){
   const pos=['🥇','🥈','🥉'];
   const subtitle=isRandom
     ?'🎲 Random roll — equal chance for all roster members. No medal data this week.'
-    :'Weighted random — only members who participated in all 3 clash fights are eligible. Higher medals &amp; participation % = higher chance. <span style="color:var(--boss)">Boss Phase medals excluded.</span>';
+    :'Weighted random — must earn medals in all 3 clash rounds. Higher medals &amp; mean participation % across weeks = higher chance. <span style="color:var(--boss)">Boss Phase medals excluded.</span>';
   let html=`<div class="glory-sec">
     <div class="glory-title">👑 Glory Members of the Week</div>
     <div class="glory-sub">${subtitle}</div>
