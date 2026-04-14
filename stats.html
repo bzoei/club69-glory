@@ -32,91 +32,136 @@ header{position:sticky;top:0;z-index:100;background:rgba(10,12,20,.96);border-bo
 .page{position:relative;z-index:1;padding:20px;max-width:900px;margin:0 auto}
 .ptitle{font-family:'Rajdhani',sans-serif;font-size:26px;font-weight:700;margin-bottom:4px}
 .ptitle span{color:var(--gold)}
-.pdesc{color:var(--muted);font-size:13px;margin-bottom:22px}
+.pdesc{color:var(--muted);font-size:13px;margin-bottom:16px}
 
-.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
-.scard{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
-.scard .lbl{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;margin-bottom:4px}
-.scard .val{font-family:'Rajdhani',sans-serif;font-size:26px;font-weight:700;color:var(--gold)}
+/* ── TABS ── */
+.tab-nav{display:flex;gap:4px;margin-bottom:20px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+.tab-btn{background:none;border:1px solid var(--border);color:var(--muted);font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;letter-spacing:.5px;padding:8px 16px;border-radius:8px;cursor:pointer;transition:all .2s;white-space:nowrap;flex-shrink:0}
+.tab-btn:hover{color:var(--text);border-color:var(--text)}
+.tab-btn.active{color:var(--gold);border-color:var(--gold);background:rgba(255,184,0,.08)}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* ── STATS CARDS ── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+.scard{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.scard .lbl{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;margin-bottom:3px}
+.scard .val{font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;color:var(--gold)}
+
+/* ── LEADERBOARD ── */
+.lb-list{display:flex;flex-direction:column;gap:6px}
+.lb-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:border-color .2s}
+.lb-card:hover{border-color:rgba(255,184,0,.3)}
+.lb-row{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.lb-rank{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;min-width:28px;text-align:center}
+.lb-rank.r1{color:#FFD700}.lb-rank.r2{color:#C0C0C0}.lb-rank.r3{color:#CD7F32}.lb-rank.rn{color:var(--muted)}
+.lb-info{flex:1;min-width:0}
+.lb-pname{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .2s}
+.lb-pname:hover{color:var(--gold)}
+.lb-meta{display:flex;gap:12px;margin-top:3px;flex-wrap:wrap}
+.lb-medal{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;display:flex;align-items:center;gap:3px}
+.lb-medal.boss{color:var(--boss)}
+.lb-medal.clash{color:var(--gold)}
+.lb-delta{font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px}
+.lb-delta.up{color:var(--green);background:rgba(76,175,80,.12)}
+.lb-delta.down{color:var(--red);background:rgba(244,67,54,.12)}
+.lb-delta.flat{color:var(--muted);background:var(--bg4)}
+.lb-delta.new-tag{color:var(--accent);background:rgba(108,99,255,.12)}
+.lb-right{text-align:right;flex-shrink:0}
+.lb-part{font-size:12px;font-weight:600}
+.lb-weeks{font-size:10px;color:var(--muted)}
+.lb-inactive .lb-pname{text-decoration:line-through;color:var(--muted)}
+.lb-inactive .lb-medal{opacity:.45}
+
+/* ── PLAYER CHART (expand) ── */
+.lb-expand{max-height:0;overflow:hidden;transition:max-height .35s ease,padding .25s ease;padding:0 14px;background:var(--bg4)}
+.lb-expand.open{max-height:500px;padding:14px}
+.chart-legend{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-bottom:6px}
+.chart-legend span{display:flex;align-items:center;gap:4px}
+.chart-legend .ldot{width:9px;height:9px;border-radius:2px}
+.chart-legend .ldot.boss{background:var(--boss)}
+.chart-legend .ldot.clash{background:var(--accent)}
+.cbars{display:flex;align-items:flex-end;gap:4px;height:120px;padding-top:10px}
+.bcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end;min-width:18px}
+.bfill{width:100%;border-radius:3px 3px 0 0;min-height:2px;position:relative;cursor:pointer;transition:opacity .15s}
+.bfill:hover{opacity:.8}
+.bfill.boss-bar{background:linear-gradient(to top,var(--boss),rgba(206,147,216,.25))}
+.bfill.clash-bar{background:linear-gradient(to top,var(--accent),rgba(108,99,255,.3))}
+.bfill:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border);padding:3px 8px;border-radius:6px;font-size:10px;white-space:nowrap;color:var(--text);z-index:10}
+.blbl{font-size:8px;color:var(--muted);text-align:center;overflow:hidden;width:100%;white-space:nowrap;text-overflow:ellipsis}
+.chart-cluster{display:flex;gap:16px;margin-top:6px}
+.chart-cluster .cluster-section{flex:1;min-width:0}
+.chart-cluster .cluster-label{font-size:10px;font-weight:700;letter-spacing:.5px;margin-bottom:4px;text-align:center}
+.chart-summary{font-size:12px;color:var(--muted);margin-bottom:8px}
+.chart-summary b{color:var(--gold)}
+.chart-summary .boss-val{color:var(--boss)}
+
 .sec-title{font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
 .sec-title::after{content:'';flex:1;height:1px;background:var(--border);margin-left:6px}
 
-/* Clan comparison panel */
-.compare-panel{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:24px}
-.compare-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px}
-.compare-header h3{font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;color:var(--gold)}
-.compare-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.compare-controls select{background:var(--bg4);border:1px solid var(--border);color:var(--text);font-family:'Exo 2',sans-serif;font-size:12px;padding:5px 10px;border-radius:8px;cursor:pointer;outline:none}
-.compare-controls select:hover{border-color:var(--gold)}
-.compare-controls label{font-size:11px;color:var(--muted);font-weight:600}
-.compare-tbl{width:100%;border-collapse:collapse}
-.compare-tbl th{text-align:left;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;padding:6px 10px;border-bottom:1px solid var(--border)}
-.compare-tbl td{padding:6px 10px;font-size:13px;border-bottom:1px solid rgba(58,63,92,.2)}
-.compare-tbl tr:last-child td{border-bottom:none}
-.compare-tbl .metric-name{font-weight:600;font-size:12px;white-space:nowrap}
-.compare-tbl .val-median{color:var(--muted);font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:600}
-.compare-tbl .val-player{font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700}
-.compare-tbl .val-player2{font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:var(--accent)}
-.val-above{color:var(--green)}
-.val-below{color:var(--red)}
-.val-equal{color:var(--gold)}
-.compare-bar-wrap{display:flex;align-items:center;gap:8px;margin-top:2px}
-.compare-bar-bg{flex:1;height:6px;background:var(--bg4);border-radius:3px;overflow:hidden;position:relative}
-.compare-bar-fill{height:100%;border-radius:3px;transition:width .4s ease}
-.compare-bar-marker{position:absolute;top:-2px;width:2px;height:10px;background:var(--text);border-radius:1px;transition:left .4s ease}
-.compare-empty{color:var(--muted);font-size:12px;text-align:center;padding:10px}
+/* ── INSIGHTS ── */
+.insight-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:20px}
+.insight-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px}
+.insight-card .ic-label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.5px;margin-bottom:6px}
+.insight-card .ic-name{font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;color:var(--gold)}
+.insight-card .ic-detail{font-size:12px;color:var(--muted);margin-top:2px}
+.insight-card.boss-card{border-left:3px solid var(--boss)}
+.insight-card.clash-card{border-left:3px solid var(--accent)}
+.insight-card.trend-card{border-left:3px solid var(--green)}
+.trend-chart-wrap{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:20px}
+.compare-wrap{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:20px}
+.compare-selects{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.compare-selects select{background:var(--bg4);border:1px solid var(--border);color:var(--text);font-family:'Exo 2',sans-serif;font-size:12px;padding:6px 10px;border-radius:8px;cursor:pointer;outline:none;max-width:160px}
+.compare-selects label{font-size:11px;color:var(--muted);font-weight:600}
+.compare-side{display:flex;gap:16px;flex-wrap:wrap}
+.compare-side .cs-col{flex:1;min-width:200px}
+.cs-header{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;color:var(--gold);margin-bottom:8px;text-align:center}
+.cs-stat{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(58,63,92,.2);font-size:12px}
+.cs-stat:last-child{border-bottom:none}
+.cs-stat .csl{color:var(--muted)}
 
-.whgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:24px}
-.whcard{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:12px}
+/* ── HISTORY ── */
+.whgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-bottom:20px}
+.whcard{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px}
 .whtop{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;color:var(--gold);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
 .gbrow{display:flex;align-items:center;gap:8px;margin-bottom:4px}
 .gbrow .nm{font-size:13px;font-weight:600}
 .gbrow .mt{font-size:11px;color:var(--muted);margin-left:auto}
 
-.dbt{background:var(--bg3);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px}
-.dbt table{width:100%;border-collapse:collapse}
-.dbt thead th{background:var(--bg4);padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap}
-.dbt tbody tr{border-bottom:1px solid rgba(58,63,92,.35)}
-.dbt tbody tr:hover{background:var(--bg4)}
-.dbt tbody tr:last-child{border-bottom:none}
-.dbt td{padding:7px 10px;font-size:12px}
-tr.inactive-row{opacity:.45}
-tr.inactive-row td{text-decoration:line-through;text-decoration-color:var(--muted)}
-.tscroll{overflow-x:auto}
+/* ── HALL OF FAME ── */
+.hof-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.hof-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center}
+.hof-rank{font-size:20px;margin-bottom:2px}
+.hof-name{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hof-count{font-size:12px;color:var(--muted);margin-top:2px}
 
-.cbars{display:flex;align-items:flex-end;gap:4px;height:150px;padding-top:12px}
-.bcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end;min-width:22px}
-.bfill{width:100%;background:linear-gradient(to top,var(--accent),rgba(108,99,255,.3));border-radius:3px 3px 0 0;min-height:2px;position:relative;cursor:pointer}
-.bfill.boss-bar{background:linear-gradient(to top,var(--boss),rgba(206,147,216,.25))}
-.bfill:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--bg4);border:1px solid var(--border);padding:3px 8px;border-radius:6px;font-size:11px;white-space:nowrap;color:var(--text);z-index:10}
-.chart-legend{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-bottom:6px}
-.chart-legend span{display:flex;align-items:center;gap:4px}
-.chart-legend .ldot{width:9px;height:9px;border-radius:2px}
-.chart-legend .ldot.clash{background:var(--accent)}
-.chart-legend .ldot.boss{background:var(--boss)}
-.chart-cluster{display:flex;gap:20px;margin-top:6px}
-.chart-cluster .cluster-section{flex:1;min-width:0}
-.chart-cluster .cluster-label{font-size:10px;font-weight:700;letter-spacing:.5px;margin-bottom:4px;text-align:center}
-.lb-name{font-weight:600;cursor:pointer;transition:color .2s}
-.lb-name:hover{color:var(--gold)}
-.player-chart-inline{overflow:hidden;transition:max-height .3s ease,padding .3s ease;max-height:0;padding:0 10px}
-.player-chart-inline.open{max-height:400px;padding:12px 10px}
 .pct-green{color:#4caf50;font-weight:600}
 .pct-yellow{color:#ffc107;font-weight:600}
 .pct-orange{color:#ff9800;font-weight:600}
 .pct-red{color:#f44336;font-weight:600}
-.blbl{font-size:8px;color:var(--muted);text-align:center;overflow:hidden;width:100%;white-space:nowrap;text-overflow:ellipsis}
-
 .empty{color:var(--muted);font-size:13px;padding:20px;text-align:center}
 .loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:40px;color:var(--muted);font-size:14px}
 .spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .6s linear infinite}
+.show-more-btn{background:var(--bg4);border:1px solid var(--border);color:var(--gold);font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;padding:8px 22px;border-radius:8px;cursor:pointer;letter-spacing:.5px;transition:border-color .2s}
+.show-more-btn:hover{border-color:var(--gold)}
 
 @media(max-width:700px){
   .page{padding:12px}
   header{padding:0 10px}
   .hlogo{font-size:15px}
   .stats-grid{grid-template-columns:repeat(2,1fr)}
-  .compare-header{flex-direction:column;align-items:flex-start}
+  .tab-nav{gap:3px}
+  .tab-btn{font-size:12px;padding:7px 10px}
+  .lb-row{padding:8px 10px;gap:8px}
+  .lb-meta{gap:8px}
+  .chart-cluster{flex-direction:column;gap:10px}
+  .insight-grid{grid-template-columns:1fr 1fr}
+  .compare-side{flex-direction:column}
+  .hof-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}
+}
+@media(max-width:400px){
+  .insight-grid{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:1fr 1fr}
 }
 </style>
 </head>
@@ -129,25 +174,46 @@ tr.inactive-row td{text-decoration:line-through;text-decoration-color:var(--mute
 
 <div class="page">
   <div class="ptitle">Clan <span>Statistics</span></div>
-  <div class="pdesc">Live stats from the clan — updated after each weekly scan.</div>
+  <div class="pdesc">Live stats — updated after each weekly scan.</div>
 
   <div id="loading" class="loading"><div class="spinner"></div> Loading stats from Firebase…</div>
 
   <div id="content" style="display:none">
     <div class="stats-grid" id="overview-stats"></div>
 
-    <div class="sec-title">📈 Clan Comparison</div>
-    <div class="compare-panel" id="compare-panel"></div>
-
-    <div class="sec-title">📅 Weekly History</div>
-    <div class="whgrid" id="week-history-grid"></div>
-    <div id="week-history-toggle" style="text-align:center;margin:-10px 0 18px 0;display:none">
-      <button onclick="toggleWeekHistory()" id="wh-toggle-btn" style="background:var(--bg4);border:1px solid var(--border);color:var(--gold);font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;padding:8px 22px;border-radius:8px;cursor:pointer;letter-spacing:.5px;transition:border-color .2s">▼ Show all weeks</button>
+    <div class="tab-nav" id="tab-nav">
+      <button class="tab-btn active" data-tab="leaderboard">Leaderboard</button>
+      <button class="tab-btn" data-tab="insights">Weekly Insights</button>
+      <button class="tab-btn" data-tab="history">History</button>
+      <button class="tab-btn" data-tab="hof">Hall of Fame</button>
     </div>
-    <div class="sec-title">👑 Glory Hall of Fame</div>
-    <div class="dbt" id="glory-hof"></div>
-    <div class="sec-title">📊 All-Time Leaderboard <span style="font-size:11px;color:var(--muted);font-weight:400;font-family:'Exo 2',sans-serif">(click a name to see history)</span></div>
-    <div class="dbt" id="leaderboard-table"></div>
+
+    <div class="tab-panel active" id="panel-leaderboard">
+      <div class="sec-title">📊 All-Time Leaderboard <span style="font-size:11px;color:var(--muted);font-weight:400;font-family:'Exo 2',sans-serif">(tap a name to see charts)</span></div>
+      <div id="leaderboard-list" class="lb-list"></div>
+    </div>
+
+    <div class="tab-panel" id="panel-insights">
+      <div class="sec-title">🏆 This Week's Highlights</div>
+      <div id="insights-highlights" class="insight-grid"></div>
+      <div class="sec-title">📈 Clan Trends</div>
+      <div id="insights-trends" class="trend-chart-wrap"></div>
+      <div class="sec-title">🔀 Compare Players</div>
+      <div id="insights-compare" class="compare-wrap"></div>
+    </div>
+
+    <div class="tab-panel" id="panel-history">
+      <div class="sec-title">📅 Weekly History</div>
+      <div id="week-history-grid" class="whgrid"></div>
+      <div id="week-history-toggle" style="text-align:center;margin-top:10px;display:none">
+        <button class="show-more-btn" id="wh-toggle-btn" onclick="toggleWeekHistory()">▼ Show all weeks</button>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="panel-hof">
+      <div class="sec-title">👑 Glory Hall of Fame</div>
+      <div id="glory-hof" class="hof-grid"></div>
+    </div>
   </div>
 </div>
 
@@ -163,17 +229,14 @@ const FIREBASE_CONFIG={
 
 let weeks=[];
 
-function esc(s){
-  const d=document.createElement('div');d.textContent=s;return d.innerHTML;
-}
-
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function safeId(name){return 'p_'+name.replace(/[^a-zA-Z0-9]/g,'_');}
 function pctClass(pct){
   if(pct>=90)return 'pct-green';
   if(pct>=70)return 'pct-yellow';
   if(pct>=50)return 'pct-orange';
   return 'pct-red';
 }
-
 function median(arr){
   if(!arr.length)return 0;
   const s=[...arr].sort((a,b)=>a-b);
@@ -181,6 +244,17 @@ function median(arr){
   return s.length%2?s[m]:Math.round((s[m-1]+s[m])/2);
 }
 
+// ── TABS ──
+document.getElementById('tab-nav').addEventListener('click',e=>{
+  const btn=e.target.closest('.tab-btn');
+  if(!btn)return;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+});
+
+// ── FIREBASE INIT ──
 async function init(){
   try{
     const app=firebase.initializeApp(FIREBASE_CONFIG);
@@ -189,299 +263,354 @@ async function init(){
     if(snap.exists && snap.data().list) weeks=snap.data().list;
   }catch(e){
     console.error('Firebase error:',e);
-    document.getElementById('loading').innerHTML='<span style="color:var(--red)">Could not load data. Please try again later.</span>';
+    document.getElementById('loading').innerHTML='<span style="color:var(--red)">Could not load data.</span>';
     return;
   }
   document.getElementById('loading').style.display='none';
   document.getElementById('content').style.display='block';
-  renderStats();
+  renderAll();
 }
 
-const WEEK_LIMIT=3;
+function renderAll(){
+  renderOverview();
+  renderLeaderboard();
+  renderInsights();
+  renderHistory();
+  renderHOF();
+}
 
+// ── OVERVIEW STATS ──
+function renderOverview(){
+  const allP=new Set();let totM=0,totBoss=0;
+  weeks.forEach(w=>w.players.forEach(p=>{allP.add(p.name);totM+=p.total;totBoss+=(p.boss||0);}));
+  document.getElementById('overview-stats').innerHTML=`
+    <div class="scard"><div class="lbl">WEEKS TRACKED</div><div class="val">${weeks.length}</div></div>
+    <div class="scard"><div class="lbl">UNIQUE PLAYERS</div><div class="val">${allP.size}</div></div>
+    <div class="scard"><div class="lbl">BOSS MEDALS</div><div class="val">${totBoss.toLocaleString()}</div></div>
+    <div class="scard"><div class="lbl">CLASH MEDALS</div><div class="val">${totM.toLocaleString()}</div></div>`;
+}
+
+// ── BOSS DELTA CALCULATION ──
+function getBossDelta(playerName){
+  const pw=weeks.filter(w=>w.players.find(p=>p.name===playerName&&!p.exempt&&(p.boss||0)>0));
+  if(pw.length<2)return null;
+  const latest=pw[0].players.find(p=>p.name===playerName);
+  const prev=pw[1].players.find(p=>p.name===playerName);
+  const lb=latest.boss||0,pb=prev.boss||0;
+  if(pb===0)return null;
+  return ((lb-pb)/pb*100);
+}
+
+// ── LEADERBOARD ──
+function renderLeaderboard(){
+  const lb={};
+  weeks.forEach(w=>w.players.forEach(p=>{
+    if(!lb[p.name])lb[p.name]={name:p.name,total:0,boss:0,weeks:0,participated:0,totalFights:0};
+    if(!p.exempt){lb[p.name].total+=p.total;lb[p.name].boss+=(p.boss||0);lb[p.name].weeks++;
+      lb[p.name].participated+=(p.participated||0);lb[p.name].totalFights+=(p.totalFights||0);}
+  }));
+  const latestNames=new Set(weeks.length?weeks[0].players.map(p=>p.name):[]);
+  const lbs=Object.values(lb).sort((a,b)=>b.total-a.total);
+  const container=document.getElementById('leaderboard-list');
+  if(!lbs.length){container.innerHTML='<div class="empty">No data yet.</div>';return;}
+
+  container.innerHTML=lbs.map((p,i)=>{
+    const inactive=!latestNames.has(p.name);
+    const pv=p.totalFights>0?Math.round(p.participated/p.totalFights*100):-1;
+    const pc=pv>=0?pv+'%':'—';
+    const pcCls=pv>=0?pctClass(pv):'';
+    const rkCls=i===0?'r1':i===1?'r2':i===2?'r3':'rn';
+    const avg=p.weeks>0?Math.round(p.total/p.weeks):0;
+    const delta=getBossDelta(p.name);
+    let deltaHtml='';
+    if(delta===null){
+      const hasAnyBoss=weeks.some(w=>w.players.find(x=>x.name===p.name&&(x.boss||0)>0));
+      deltaHtml=hasAnyBoss?'':'<span class="lb-delta new-tag">NEW</span>';
+    }else if(delta>0) deltaHtml=`<span class="lb-delta up">+${delta.toFixed(1)}%</span>`;
+    else if(delta<0) deltaHtml=`<span class="lb-delta down">${delta.toFixed(1)}%</span>`;
+    else deltaHtml='<span class="lb-delta flat">0.0%</span>';
+
+    return `<div class="lb-card${inactive?' lb-inactive':''}">
+      <div class="lb-row" onclick="toggleChart('${safeId(p.name)}','${esc(p.name).replace(/'/g,"\\'")}')">
+        <div class="lb-rank ${rkCls}">${i+1}</div>
+        <div class="lb-info">
+          <div class="lb-pname">${esc(p.name)}</div>
+          <div class="lb-meta">
+            <span class="lb-medal boss">🏰 ${p.boss.toLocaleString()} ${deltaHtml}</span>
+            <span class="lb-medal clash">⚔ ${p.total.toLocaleString()}</span>
+            <span style="font-size:11px;color:var(--muted)">~${avg}/wk</span>
+          </div>
+        </div>
+        <div class="lb-right">
+          <div class="lb-part ${pcCls}">${pc}</div>
+          <div class="lb-weeks">${p.weeks} wk${p.weeks!==1?'s':''}</div>
+        </div>
+      </div>
+      <div class="lb-expand" id="chart-${safeId(p.name)}"><div class="chart-inner"></div></div>
+    </div>`;
+  }).join('');
+}
+
+// ── PLAYER CHART TOGGLE ──
+let openChart=null;
+function toggleChart(sid,name){
+  const prev=document.querySelector('.lb-expand.open');
+  if(prev){prev.classList.remove('open');if(prev.id==='chart-'+sid){openChart=null;return;}}
+  openChart=sid;
+  const el=document.getElementById('chart-'+sid);
+  if(!el)return;
+  const div=el.querySelector('.chart-inner');
+  const data=[...weeks].reverse().map(w=>{const p=w.players.find(x=>x.name===name);return{label:w.label,clash:p?p.total:0,boss:p?(p.boss||0):0};});
+  if(!data.length){div.innerHTML='<div class="empty">No data.</div>';el.classList.add('open');return;}
+  const maxB=Math.max(...data.map(d=>d.boss),1);
+  const maxC=Math.max(...data.map(d=>d.clash),1);
+  const gw=weeks.filter(w=>w.gloryWinners.some(g=>g.name===name));
+  const totalBoss=data.reduce((s,d)=>s+d.boss,0);
+  const totalClash=data.reduce((s,d)=>s+d.clash,0);
+
+  // Boss weekly deltas
+  let bossDeltas='';
+  for(let i=1;i<data.length;i++){
+    if(data[i-1].boss>0&&data[i].boss>0){
+      const d=((data[i].boss-data[i-1].boss)/data[i-1].boss*100);
+      bossDeltas+=`<span style="font-size:10px;color:${d>=0?'var(--green)':'var(--red)'}">${data[i].label.replace(/Week /,'W').replace(/ ·.*/,'')}: ${d>=0?'+':''}${d.toFixed(1)}%</span> `;
+    }
+  }
+
+  div.innerHTML=`
+    <div class="chart-summary">
+      Boss: <b class="boss-val">${totalBoss.toLocaleString()}</b> · Clash: <b>${totalClash.toLocaleString()}</b>
+      ${gw.length?` · 👑 Glory: <b>${gw.length}</b>`:''}
+    </div>
+    ${bossDeltas?`<div style="margin-bottom:8px;line-height:1.8">${bossDeltas}</div>`:''}
+    <div class="chart-legend"><span><span class="ldot boss"></span>Boss</span><span><span class="ldot clash"></span>Clash</span></div>
+    <div class="chart-cluster">
+      <div class="cluster-section">
+        <div class="cluster-label" style="color:var(--boss)">BOSS</div>
+        <div class="cbars">${data.map(d=>{const h=Math.round(d.boss/maxB*100);return`<div class="bcol"><div class="bfill boss-bar" style="height:${h}px" data-tip="${d.boss} — ${d.label}"></div><div class="blbl">${d.label.replace(/Week /,'W').replace(/ ·.*/,'')}</div></div>`;}).join('')}</div>
+      </div>
+      <div class="cluster-section">
+        <div class="cluster-label" style="color:var(--accent)">CLASH</div>
+        <div class="cbars">${data.map(d=>{const h=Math.round(d.clash/maxC*100);return`<div class="bcol"><div class="bfill clash-bar" style="height:${h}px" data-tip="${d.clash} — ${d.label}"></div><div class="blbl">${d.label.replace(/Week /,'W').replace(/ ·.*/,'')}</div></div>`;}).join('')}</div>
+      </div>
+    </div>`;
+  el.classList.add('open');
+}
+
+// ── INSIGHTS ──
+function renderInsights(){
+  const hl=document.getElementById('insights-highlights');
+  const trends=document.getElementById('insights-trends');
+  const cmp=document.getElementById('insights-compare');
+
+  if(!weeks.length){
+    hl.innerHTML='<div class="empty">No data yet.</div>';
+    trends.innerHTML='<div class="empty">No trend data yet.</div>';
+    cmp.innerHTML='<div class="empty">Need data to compare.</div>';
+    return;
+  }
+
+  // This week highlights
+  const latest=weeks[0];
+  const prev=weeks.length>1?weeks[1]:null;
+  const active=latest.players.filter(p=>!p.exempt);
+
+  // Top boss
+  const topBoss=[...active].sort((a,b)=>(b.boss||0)-(a.boss||0)).slice(0,3);
+  // Top clash
+  const topClash=[...active].sort((a,b)=>b.total-a.total).slice(0,3);
+
+  // Biggest boss improvement
+  let biggestMover=null;
+  if(prev){
+    let bestDelta=-Infinity,bestName='';
+    active.forEach(p=>{
+      const pp=prev.players.find(x=>x.name===p.name&&!x.exempt);
+      if(pp&&(pp.boss||0)>0&&(p.boss||0)>0){
+        const d=((p.boss-pp.boss)/pp.boss*100);
+        if(d>bestDelta){bestDelta=d;bestName=p.name;}
+      }
+    });
+    if(bestName)biggestMover={name:bestName,delta:bestDelta};
+  }
+
+  // Best participation (across all weeks)
+  let bestPart=null,bestPartPct=0;
+  const lb={};
+  weeks.forEach(w=>w.players.forEach(p=>{
+    if(!lb[p.name])lb[p.name]={participated:0,totalFights:0,weeks:0};
+    if(!p.exempt){lb[p.name].participated+=(p.participated||0);lb[p.name].totalFights+=(p.totalFights||0);lb[p.name].weeks++;}
+  }));
+  const latestNames=new Set(latest.players.map(p=>p.name));
+  Object.entries(lb).forEach(([name,d])=>{
+    if(!latestNames.has(name))return;
+    if(d.totalFights>0&&d.weeks>=2){
+      const pct=Math.round(d.participated/d.totalFights*100);
+      if(pct>bestPartPct||(pct===bestPartPct&&d.weeks>(bestPart?bestPart.weeks:0))){bestPartPct=pct;bestPart={name,pct,weeks:d.weeks};}
+    }
+  });
+
+  let hlHtml='';
+  // Top 3 boss
+  topBoss.forEach((p,i)=>{
+    hlHtml+=`<div class="insight-card boss-card">
+      <div class="ic-label">${['🥇','🥈','🥉'][i]} TOP BOSS</div>
+      <div class="ic-name">${esc(p.name)}</div>
+      <div class="ic-detail">${(p.boss||0).toLocaleString()} boss medals</div>
+    </div>`;
+  });
+  // Top clash performer
+  if(topClash.length){
+    hlHtml+=`<div class="insight-card clash-card">
+      <div class="ic-label">⚔ TOP CLASH</div>
+      <div class="ic-name">${esc(topClash[0].name)}</div>
+      <div class="ic-detail">${topClash[0].total.toLocaleString()} clash medals</div>
+    </div>`;
+  }
+  // Biggest mover
+  if(biggestMover){
+    hlHtml+=`<div class="insight-card trend-card">
+      <div class="ic-label">📈 BIGGEST BOSS MOVER</div>
+      <div class="ic-name">${esc(biggestMover.name)}</div>
+      <div class="ic-detail" style="color:${biggestMover.delta>=0?'var(--green)':'var(--red)'}">${biggestMover.delta>=0?'+':''}${biggestMover.delta.toFixed(1)}% vs last week</div>
+    </div>`;
+  }
+  // Most consistent
+  if(bestPart){
+    hlHtml+=`<div class="insight-card trend-card">
+      <div class="ic-label">🎯 MOST CONSISTENT</div>
+      <div class="ic-name">${esc(bestPart.name)}</div>
+      <div class="ic-detail">${bestPart.pct}% participation across ${bestPart.weeks} weeks</div>
+    </div>`;
+  }
+  hl.innerHTML=hlHtml||'<div class="empty">Not enough data for highlights.</div>';
+
+  // Clan trends chart
+  const ordered=[...weeks].reverse();
+  const avgBoss=ordered.map(w=>{const a=w.players.filter(p=>!p.exempt&&(p.boss||0)>0);return a.length?Math.round(a.reduce((s,p)=>s+(p.boss||0),0)/a.length):0;});
+  const avgClash=ordered.map(w=>{const a=w.players.filter(p=>!p.exempt&&p.total>0);return a.length?Math.round(a.reduce((s,p)=>s+p.total,0)/a.length):0;});
+  const maxTB=Math.max(...avgBoss,1);
+  const maxTC=Math.max(...avgClash,1);
+
+  trends.innerHTML=`
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Average medals per member per week</div>
+    <div class="chart-legend"><span><span class="ldot boss"></span>Avg Boss</span><span><span class="ldot clash"></span>Avg Clash</span></div>
+    <div class="chart-cluster">
+      <div class="cluster-section">
+        <div class="cluster-label" style="color:var(--boss)">AVG BOSS</div>
+        <div class="cbars">${ordered.map((w,i)=>{const h=Math.round(avgBoss[i]/maxTB*100);return`<div class="bcol"><div class="bfill boss-bar" style="height:${h}px" data-tip="Avg ${avgBoss[i]} — ${w.label}"></div><div class="blbl">${w.label.replace(/Week /,'W').replace(/ ·.*/,'')}</div></div>`;}).join('')}</div>
+      </div>
+      <div class="cluster-section">
+        <div class="cluster-label" style="color:var(--accent)">AVG CLASH</div>
+        <div class="cbars">${ordered.map((w,i)=>{const h=Math.round(avgClash[i]/maxTC*100);return`<div class="bcol"><div class="bfill clash-bar" style="height:${h}px" data-tip="Avg ${avgClash[i]} — ${w.label}"></div><div class="blbl">${w.label.replace(/Week /,'W').replace(/ ·.*/,'')}</div></div>`;}).join('')}</div>
+      </div>
+    </div>`;
+
+  // Player comparison
+  const allNames=new Set();
+  weeks.forEach(w=>w.players.forEach(p=>allNames.add(p.name)));
+  const sortedNames=[...allNames].sort((a,b)=>a.localeCompare(b));
+
+  cmp.innerHTML=`
+    <div class="compare-selects">
+      <label>Player:</label>
+      <select id="cmp-p1"><option value="">-- select --</option>${sortedNames.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')}</select>
+      <label>vs</label>
+      <select id="cmp-p2"><option value="">-- select --</option>${sortedNames.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')}</select>
+    </div>
+    <div id="cmp-result" style="font-size:12px;color:var(--muted);text-align:center">Select two players to compare side-by-side</div>`;
+
+  document.getElementById('cmp-p1').addEventListener('change',updateCompare);
+  document.getElementById('cmp-p2').addEventListener('change',updateCompare);
+}
+
+function updateCompare(){
+  const n1=document.getElementById('cmp-p1').value;
+  const n2=document.getElementById('cmp-p2').value;
+  const res=document.getElementById('cmp-result');
+  if(!n1||!n2){res.innerHTML='<div style="text-align:center;color:var(--muted)">Select two players to compare</div>';return;}
+
+  function playerStats(name){
+    let total=0,boss=0,wks=0,part=0,tf=0;
+    const weekData=[];
+    weeks.forEach(w=>{
+      const p=w.players.find(x=>x.name===name);
+      if(p&&!p.exempt){total+=p.total;boss+=(p.boss||0);wks++;part+=(p.participated||0);tf+=(p.totalFights||0);
+        weekData.push({label:w.label,boss:p.boss||0,clash:p.total});}
+    });
+    return{total,boss,wks,part:tf>0?Math.round(part/tf*100):0,weekData:weekData.reverse()};
+  }
+
+  const s1=playerStats(n1),s2=playerStats(n2);
+  function row(label,v1,v2,fmt){
+    const f=fmt||((v)=>v.toLocaleString());
+    const cls1=v1>v2?'color:var(--green)':v1<v2?'color:var(--red)':'color:var(--gold)';
+    const cls2=v2>v1?'color:var(--green)':v2<v1?'color:var(--red)':'color:var(--gold)';
+    return`<div class="cs-stat"><span class="csl">${label}</span><span style="${cls1};font-weight:700">${f(v1)}</span><span style="${cls2};font-weight:700">${f(v2)}</span></div>`;
+  }
+
+  res.innerHTML=`
+    <div class="compare-side">
+      <div class="cs-col" style="flex:1">
+        <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+          <span style="font-weight:700;color:var(--gold)">${esc(n1)}</span>
+          <span style="font-weight:700;color:var(--accent)">vs</span>
+          <span style="font-weight:700;color:var(--gold)">${esc(n2)}</span>
+        </div>
+        ${row('🏰 Boss Total',s1.boss,s2.boss)}
+        ${row('⚔ Clash Total',s1.total,s2.total)}
+        ${row('Weeks',s1.wks,s2.wks)}
+        ${row('Boss Avg/wk',s1.wks?Math.round(s1.boss/s1.wks):0,s2.wks?Math.round(s2.boss/s2.wks):0)}
+        ${row('Clash Avg/wk',s1.wks?Math.round(s1.total/s1.wks):0,s2.wks?Math.round(s2.total/s2.wks):0)}
+        ${row('Participation',s1.part,s2.part,v=>v+'%')}
+      </div>
+    </div>`;
+}
+
+// ── HISTORY ──
+const WEEK_LIMIT=4;
 function renderWeekCards(list){
   document.getElementById('week-history-grid').innerHTML=list.map(w=>`
     <div class="whcard">
       <div class="whtop"><span>🗓 ${esc(w.label)}</span><span style="font-size:11px;color:var(--muted)">${w.date}</span></div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${w.players.length} members · ${w.players.reduce((s,p)=>s+p.total,0).toLocaleString()} medals</div>
-      <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:5px">GLORY MEMBERS</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px">${w.players.length} members · ${w.players.reduce((s,p)=>s+p.total,0).toLocaleString()} medals</div>
+      <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:4px">GLORY MEMBERS</div>
       ${w.gloryWinners.map((g,i)=>`<div class="gbrow"><span>${['🥇','🥈','🥉'][i]}</span><span class="nm">${esc(g.name)}</span><span class="mt">${g.medals} 🏅</span></div>`).join('')}
     </div>`).join('');
+}
+
+function renderHistory(){
+  window._whExpanded=false;
+  if(!weeks.length){document.getElementById('week-history-grid').innerHTML='<div class="empty">No weeks saved yet.</div>';return;}
+  renderWeekCards(weeks.slice(0,WEEK_LIMIT));
+  const toggle=document.getElementById('week-history-toggle');
+  if(weeks.length>WEEK_LIMIT){
+    toggle.style.display='block';
+    document.getElementById('wh-toggle-btn').textContent='▼ Show all '+weeks.length+' weeks';
+  }else toggle.style.display='none';
 }
 
 function toggleWeekHistory(){
   window._whExpanded=!window._whExpanded;
   const btn=document.getElementById('wh-toggle-btn');
-  if(window._whExpanded){
-    renderWeekCards(weeks);
-    btn.textContent='▲ Show recent only';
-  }else{
-    renderWeekCards(weeks.slice(0,WEEK_LIMIT));
-    btn.textContent='▼ Show all '+weeks.length+' weeks';
-  }
+  if(window._whExpanded){renderWeekCards(weeks);btn.textContent='▲ Show recent only';}
+  else{renderWeekCards(weeks.slice(0,WEEK_LIMIT));btn.textContent='▼ Show all '+weeks.length+' weeks';}
 }
 
-function renderStats(){
-  const allP=new Set();let totM=0;
-  weeks.forEach(w=>w.players.forEach(p=>{allP.add(p.name);totM+=p.total;}));
-  document.getElementById('overview-stats').innerHTML=`
-    <div class="scard"><div class="lbl">WEEKS TRACKED</div><div class="val">${weeks.length}</div></div>
-    <div class="scard"><div class="lbl">UNIQUE PLAYERS</div><div class="val">${allP.size}</div></div>
-    <div class="scard"><div class="lbl">TOTAL MEDALS</div><div class="val">${totM.toLocaleString()}</div></div>
-    <div class="scard"><div class="lbl">GLORY TITLES</div><div class="val">${weeks.reduce((s,w)=>s+w.gloryWinners.length,0)}</div></div>`;
-
-  renderComparePanel();
-
-  const wh=document.getElementById('week-history-grid');
-  const WEEK_LIMIT=3;
-  window._whExpanded=false;
-  if(!weeks.length)wh.innerHTML='<div class="empty">No weeks saved yet.</div>';
-  else renderWeekCards(weeks.slice(0,WEEK_LIMIT));
-  const toggleWrap=document.getElementById('week-history-toggle');
-  if(weeks.length>WEEK_LIMIT){
-    toggleWrap.style.display='block';
-    document.getElementById('wh-toggle-btn').textContent='▼ Show all '+weeks.length+' weeks';
-  }else toggleWrap.style.display='none';
-
-  const counts={};weeks.forEach(w=>w.gloryWinners.forEach(g=>{counts[g.name]=(counts[g.name]||0)+1;}));
+// ── HALL OF FAME ──
+function renderHOF(){
+  const counts={};
+  weeks.forEach(w=>w.gloryWinners.forEach(g=>{counts[g.name]=(counts[g.name]||0)+1;}));
   const hof=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
-  const hofD=document.getElementById('glory-hof');
-  if(!hof.length)hofD.innerHTML='<div class="empty">No glory members yet.</div>';
-  else hofD.innerHTML=`<div class="tscroll"><table><thead><tr><th>#</th><th>PLAYER</th><th>GLORY TITLES</th><th></th></tr></thead><tbody>
-    ${hof.map(([n,c],i)=>`<tr><td style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;color:${['#FFD700','#C0C0C0','#CD7F32'][i]||'var(--muted)'};width:36px">${i+1}</td><td style="font-weight:600">${esc(n)}</td><td style="color:var(--gold);font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700">${c} 👑</td><td>${'⭐'.repeat(Math.min(c,10))}</td></tr>`).join('')}
-    </tbody></table></div>`;
-
-  renderLeaderboard();
-}
-
-function renderLeaderboard(){
-  const lb={};weeks.forEach(w=>w.players.forEach(p=>{if(!lb[p.name])lb[p.name]={name:p.name,total:0,boss:0,weeks:0,participated:0,totalFights:0};if(!p.exempt){lb[p.name].total+=p.total;lb[p.name].boss+=(p.boss||0);lb[p.name].weeks++;lb[p.name].participated+=(p.participated||0);lb[p.name].totalFights+=(p.totalFights||0);}}));
-  // Players in the most recent week are "active"; everyone else is inactive (left the clan)
-  const latestNames=new Set(weeks.length?weeks[0].players.map(p=>p.name):[]);
-  const lbs=Object.values(lb).sort((a,b)=>b.total-a.total);
-  const lbD=document.getElementById('leaderboard-table');
-  if(!lbs.length){lbD.innerHTML='<div class="empty">No data yet.</div>';return;}
-  const cols=7;
-  lbD.innerHTML=`<div class="tscroll"><table><thead><tr><th>#</th><th>PLAYER</th><th>ALL-TIME</th><th style="color:var(--boss)">BOSS</th><th>WKS</th><th>AVG/WK</th><th>PART.</th></tr></thead><tbody>
-    ${lbs.map((p,i)=>{const inactive=!latestNames.has(p.name);const pv=p.totalFights>0?Math.round(p.participated/p.totalFights*100):-1;const pc=pv>=0?pv+'%':'—';const pcCls=pv>=0?pctClass(pv):'';return `<tr class="${inactive?'inactive-row':''}"><td style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;color:${['#FFD700','#C0C0C0','#CD7F32'][i]||'var(--muted)'};width:32px">${i+1}</td><td class="lb-name" onclick="toggleChart('${esc(p.name).replace(/'/g,"\\'")}')">${esc(p.name)}</td><td style="color:var(--gold);font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700">${p.total.toLocaleString()}</td><td style="color:var(--boss);font-weight:600;font-size:12px">${p.boss.toLocaleString()}</td><td style="color:var(--muted);font-size:12px">${p.weeks}</td><td style="color:var(--gold-light);font-size:12px">${p.weeks>0?Math.round(p.total/p.weeks):0}</td><td class="${pcCls}" style="font-size:11px">${pc}</td></tr><tr><td colspan="${cols}" style="padding:0;border:none"><div class="player-chart-inline" id="chart-${esc(p.name)}" data-player="${esc(p.name)}"><div class="chart-content"></div></div></td></tr>`;}).join('')}
-    </tbody></table></div>`;
-}
-
-// --- Clan comparison panel ---
-function renderComparePanel(){
-  const panel=document.getElementById('compare-panel');
-  if(!weeks.length){panel.innerHTML='<div class="compare-empty">No data yet.</div>';return;}
-
-  const allNames=new Set();
-  weeks.forEach(w=>w.players.forEach(p=>allNames.add(p.name)));
-  const sortedNames=[...allNames].sort((a,b)=>a.localeCompare(b));
-
-  panel.innerHTML=`
-    <div class="compare-header">
-      <h3>📈 Compare against clan medians</h3>
-      <div class="compare-controls">
-        <label>Player 1:</label>
-        <select id="cmp-player1"><option value="">-- select --</option>${sortedNames.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')}</select>
-        <label>vs</label>
-        <select id="cmp-player2"><option value="">Clan Median</option>${sortedNames.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')}</select>
-      </div>
-    </div>
-    <div id="cmp-body"></div>`;
-
-  document.getElementById('cmp-player1').addEventListener('change',updateCompare);
-  document.getElementById('cmp-player2').addEventListener('change',updateCompare);
-  updateCompare();
-}
-
-function updateCompare(){
-  const body=document.getElementById('cmp-body');
-  const p1Name=document.getElementById('cmp-player1').value;
-  const p2Name=document.getElementById('cmp-player2').value;
-
-  if(!p1Name){
-    // Show clan median overview when no player selected
-    body.innerHTML=renderClanMedianOverview();
-    return;
-  }
-
-  // Compute per-week stats for player(s)
-  const orderedWeeks=[...weeks].reverse(); // chronological
-  const p1Stats=getPlayerWeeklyStats(p1Name,orderedWeeks);
-  const clanMedians=getClanMedians(orderedWeeks);
-
-  let p2Stats=null;
-  if(p2Name){
-    p2Stats=getPlayerWeeklyStats(p2Name,orderedWeeks);
-  }
-  const compareTarget=p2Stats||clanMedians;
-  const compareLabel=p2Name||'Clan Median';
-
-  const metrics=[
-    {key:'clash',label:'Clash Medals',color:'var(--gold)'},
-    {key:'boss',label:'Boss Medals',color:'var(--boss)'},
-    {key:'participation',label:'Participation %',color:'var(--green)',isPct:true},
-  ];
-
-  let rows='';
-  metrics.forEach(m=>{
-    const p1Vals=p1Stats.map(s=>s[m.key]);
-    const cVals=compareTarget.map(s=>s[m.key]);
-    // Per-week mini comparison
-    const weekCells=orderedWeeks.map((_,i)=>{
-      const v1=p1Vals[i]!=null?p1Vals[i]:null;
-      const v2=cVals[i]!=null?cVals[i]:null;
-      if(v1===null){
-        const isExempt=p1Stats[i]&&p1Stats[i].exempt;
-        return `<td style="color:var(--muted);font-size:11px;text-align:center" ${isExempt?'title="Exempted this week"':''}>${isExempt?'E':'—'}</td>`;
-      }
-      const cls=v2!==null?(v1>v2?'val-above':v1<v2?'val-below':'val-equal'):'';
-      const display=m.isPct?(v1+'%'):v1.toLocaleString();
-      return `<td class="val-player ${cls}" style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;text-align:center">${display}</td>`;
-    }).join('');
-
-    // Summary: avg
-    const p1Avg=p1Vals.filter(v=>v!==null);
-    const cAvg=cVals.filter(v=>v!==null);
-    const p1Mean=p1Avg.length?Math.round(p1Avg.reduce((s,v)=>s+v,0)/p1Avg.length):0;
-    const cMean=cAvg.length?Math.round(cAvg.reduce((s,v)=>s+v,0)/cAvg.length):0;
-    const avgCls=p1Mean>cMean?'val-above':p1Mean<cMean?'val-below':'val-equal';
-    const avgDisplay=m.isPct?(p1Mean+'%'):p1Mean.toLocaleString();
-    const cDisplay=m.isPct?(cMean+'%'):cMean.toLocaleString();
-
-    // Bar visualization
-    const maxVal=Math.max(p1Mean,cMean,1);
-    const p1Pct=Math.round(p1Mean/maxVal*100);
-    const cPct=Math.round(cMean/maxVal*100);
-
-    rows+=`<tr>
-      <td class="metric-name" style="color:${m.color}">${m.label}</td>
-      ${weekCells}
-      <td style="text-align:center"><span class="val-median">${cDisplay}</span></td>
-      <td style="text-align:center"><span class="val-player ${avgCls}" style="font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700">${avgDisplay}</span>
-        <div class="compare-bar-wrap">
-          <div class="compare-bar-bg">
-            <div class="compare-bar-fill" style="width:${p1Pct}%;background:${m.color}"></div>
-            <div class="compare-bar-marker" style="left:${cPct}%"></div>
-          </div>
-        </div>
-      </td>
-    </tr>`;
-  });
-
-  const weekHeaders=orderedWeeks.map(w=>`<th style="text-align:center;font-size:9px">${w.label.replace(/Week /,'W').replace(/ ·.*/,'')}</th>`).join('');
-
-  body.innerHTML=`
-    <div class="tscroll">
-    <table class="compare-tbl">
-      <thead><tr><th>Metric</th>${weekHeaders}<th style="text-align:center">${esc(compareLabel)}</th><th style="text-align:center">${esc(p1Name)}</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-    </div>
-    <div style="font-size:10px;color:var(--muted);margin-top:8px;display:flex;gap:14px">
-      <span><span style="color:var(--green)">Green</span> = above target</span>
-      <span><span style="color:var(--red)">Red</span> = below target</span>
-      <span>| = target avg</span>
-    </div>`;
-}
-
-function renderClanMedianOverview(){
-  const orderedWeeks=[...weeks].reverse();
-  const clanMedians=getClanMedians(orderedWeeks);
-  const weekHeaders=orderedWeeks.map(w=>`<th style="text-align:center;font-size:9px">${w.label.replace(/Week /,'W').replace(/ ·.*/,'')}</th>`).join('');
-
-  const metrics=[
-    {key:'clash',label:'Clash Medals',color:'var(--gold)'},
-    {key:'boss',label:'Boss Medals',color:'var(--boss)'},
-    {key:'participation',label:'Participation %',color:'var(--green)',isPct:true},
-  ];
-
-  let rows='';
-  metrics.forEach(m=>{
-    const vals=clanMedians.map(s=>s[m.key]);
-    const cells=vals.map(v=>{
-      if(v===null)return `<td style="color:var(--muted);font-size:11px;text-align:center">—</td>`;
-      const display=m.isPct?(v+'%'):v.toLocaleString();
-      return `<td class="val-median" style="text-align:center">${display}</td>`;
-    }).join('');
-    const avg=vals.filter(v=>v!==null);
-    const mean=avg.length?Math.round(avg.reduce((s,v)=>s+v,0)/avg.length):0;
-    const display=m.isPct?(mean+'%'):mean.toLocaleString();
-    rows+=`<tr><td class="metric-name" style="color:${m.color}">${m.label}</td>${cells}<td class="val-median" style="text-align:center;font-weight:700">${display}</td></tr>`;
-  });
-
-  return `
-    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Select a player above to compare against the clan median — or against another member.</div>
-    <div class="tscroll">
-    <table class="compare-tbl">
-      <thead><tr><th>Metric</th>${weekHeaders}<th style="text-align:center">Avg</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-    </div>`;
-}
-
-function getPlayerWeeklyStats(name,orderedWeeks){
-  return orderedWeeks.map(w=>{
-    const p=w.players.find(x=>x.name===name);
-    if(!p)return {clash:null,boss:null,participation:null,exempt:false};
-    if(p.exempt)return {clash:null,boss:null,participation:null,exempt:true};
-    const pct=p.totalFights>0?Math.round(p.participated/p.totalFights*100):null;
-    return {clash:p.total,boss:p.boss||0,participation:pct,exempt:false};
-  });
-}
-
-function getClanMedians(orderedWeeks){
-  return orderedWeeks.map(w=>{
-    const active=w.players.filter(p=>!p.exempt);
-    const clashVals=active.map(p=>p.total).filter(v=>v>0);
-    const bossVals=active.map(p=>p.boss||0).filter(v=>v>0);
-    const pctVals=active.filter(p=>p.totalFights>0).map(p=>Math.round(p.participated/p.totalFights*100));
-    return {
-      clash:median(clashVals),
-      boss:median(bossVals),
-      participation:median(pctVals)
-    };
-  });
-}
-
-// --- Player chart ---
-let openChart=null;
-function toggleChart(name){
-  const prev=document.querySelector('.player-chart-inline.open');
-  if(prev){prev.classList.remove('open');if(prev.dataset.player===name){openChart=null;return;}}
-  openChart=name;
-  const row=document.getElementById('chart-'+CSS.escape(name));
-  if(!row)return;
-  const div=row.querySelector('.chart-content');
-  const data=[...weeks].reverse().map(w=>{
-    const p=w.players.find(x=>x.name===name);
-    return {label:w.label,clash:p?p.total:0,boss:p?(p.boss||0):0};
-  });
-  if(!data.length){div.innerHTML='<div class="empty">No data.</div>';row.classList.add('open');return;}
-  const maxC=Math.max(...data.map(d=>d.clash),1);
-  const maxB=Math.max(...data.map(d=>d.boss),1);
-  const gw=weeks.filter(w=>w.gloryWinners.some(g=>g.name===name));
-  const totalClash=data.reduce((s,d)=>s+d.clash,0);
-  const totalBoss=data.reduce((s,d)=>s+d.boss,0);
-  div.innerHTML=`
-    <div style="font-size:12px;margin-bottom:8px;color:var(--muted)">
-      Clash: <b style="color:var(--gold)">${totalClash.toLocaleString()}</b> · Boss: <b style="color:var(--boss)">${totalBoss.toLocaleString()}</b>
-      ${gw.length?` · 👑 Glory titles: <b style="color:var(--gold)">${gw.length}</b>`:''}
-    </div>
-    <div class="chart-legend">
-      <span><span class="ldot clash"></span>Clash</span>
-      <span><span class="ldot boss"></span>Boss</span>
-    </div>
-    <div class="chart-cluster">
-      <div class="cluster-section">
-        <div class="cluster-label" style="color:var(--accent)">CLASH</div>
-        <div class="cbars">${data.map(d=>{const h=Math.round(d.clash/maxC*120);return`<div class="bcol"><div class="bfill" style="height:${h}px" data-tip="${d.clash} — ${d.label}"></div><div class="blbl">${d.label.replace(/Week /,'W').replace(/ ·.*/,'')}</div></div>`;}).join('')}</div>
-      </div>
-      <div class="cluster-section">
-        <div class="cluster-label" style="color:var(--boss)">BOSS</div>
-        <div class="cbars">${data.map(d=>{const h=Math.round(d.boss/maxB*120);return`<div class="bcol"><div class="bfill boss-bar" style="height:${h}px" data-tip="${d.boss} — ${d.label}"></div><div class="blbl">${d.label.replace(/Week /,'W').replace(/ ·.*/,'')}</div></div>`;}).join('')}</div>
-      </div>
-    </div>`;
-  row.classList.add('open');
+  const container=document.getElementById('glory-hof');
+  if(!hof.length){container.innerHTML='<div class="empty">No glory members yet.</div>';return;}
+  const medals=['🥇','🥈','🥉'];
+  container.innerHTML=hof.map(([n,c],i)=>`
+    <div class="hof-card">
+      <div class="hof-rank">${medals[i]||'#'+(i+1)}</div>
+      <div class="hof-name">${esc(n)}</div>
+      <div class="hof-count">${c} title${c!==1?'s':''} 👑</div>
+    </div>`).join('');
 }
 
 init();
