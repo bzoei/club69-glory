@@ -312,6 +312,14 @@ tr.inactive-row td{text-decoration:line-through;text-decoration-color:var(--mute
       <button onclick="addToRoster()">+ Add</button>
     </div>
   </div>
+  <div class="sec-title">👑 Leaders &amp; Vice Leaders <span style="font-size:12px;color:var(--muted);font-weight:400;font-family:'Exo 2',sans-serif">(excluded from glory lottery)</span></div>
+  <div class="roster-box" id="vice-box">
+    <div class="roster-chips" id="vice-chips"></div>
+    <div class="roster-add">
+      <input type="text" id="vice-input" placeholder="Add leader name…" onkeydown="if(event.key==='Enter')addToVice()">
+      <button onclick="addToVice()">+ Add</button>
+    </div>
+  </div>
   <div class="sec-title">📅 Weekly History</div>
   <div class="whgrid" id="week-history-grid"></div>
   <div class="sec-title">👑 Glory Hall of Fame</div>
@@ -368,6 +376,8 @@ async function loadWeeks(){try{const d=await fbGet('glory','weeks');if(d&&d.list
 async function saveWeeks(){try{await fbSet('glory','weeks',{list:weeks});}catch(e){toast('Sync error — check connection','error');}}
 async function loadRoster(){try{const d=await fbGet('glory','roster');if(d&&d.names)roster=d.names;}catch(e){console.warn('loadRoster:',e);}}
 async function saveRoster(){try{await fbSet('glory','roster',{names:roster});}catch(e){toast('Sync error','error');}}
+async function loadVice(){try{const d=await fbGet('glory','viceLeaders');if(d&&Array.isArray(d.names))viceLeaders=d.names;}catch(e){console.warn('loadVice:',e);}}
+async function saveVice(){try{await fbSet('glory','viceLeaders',{names:viceLeaders});}catch(e){toast('Sync error','error');}}
 
 // ════════════════════════════════
 //  AUTH — hash only, no plaintext
@@ -443,6 +453,7 @@ let merged=[];
 let gloryW=[];
 let weeks=[];
 let roster=[]; // saved player names for fuzzy matching
+let viceLeaders=['bzoei','cappmeister','silasp']; // leaders + vice leaders excluded from glory lottery (overridden from Firebase)
 FIGHTS.forEach(f=>{fdata[f.id]={shots:[],parsed:[]};});
 
 // ════════════════════════════════
@@ -502,6 +513,7 @@ async function init(){
   toast('Syncing with Firebase…','info');
   await loadWeeks();
   await loadRoster();
+  await loadVice();
   // Auto-fix: resolve misspelled names in saved weeks against current roster
   if(roster.length && weeks.length){
     let fixed=false;
@@ -937,13 +949,13 @@ function editM(name,val){
 // ════════════════════════════════
 //  GLORY SELECTION
 // ════════════════════════════════
-// Leaders/vice-leaders excluded from glory member lottery
-const GLORY_EXEMPT=['bzoei','nomi1113','silasp'];
+// Leaders/vice-leaders excluded from glory member lottery (managed in Stats page)
 function isGloryExempt(name){
   const n=name.toLowerCase();
-  return GLORY_EXEMPT.some(ex=>{
-    if(n===ex) return true;
-    return levenshtein(n,ex)<=2;
+  return viceLeaders.some(ex=>{
+    const exl=ex.toLowerCase();
+    if(n===exl) return true;
+    return levenshtein(n,exl)<=2;
   });
 }
 
@@ -952,12 +964,26 @@ function getGloryPool(){
     && p.totalFights>0 && p.participated===p.totalFights);
 }
 
-// Mean participation % across ALL saved weeks + current week
+// Mean participation % across saved weeks + current week.
+// Pity week: a player's very first week (oldest week they appear in) is skipped.
+// If they have no saved history, the current week IS their first week and is also skipped.
 function getMeanParticipation(playerName){
   let tp=0,tf=0;
-  weeks.forEach(w=>{const p=w.players.find(x=>x.name===playerName);if(p&&!p.exempt){tp+=(p.participated||0);tf+=(p.totalFights||0);}});
-  const curr=merged.find(x=>x.name===playerName);
-  if(curr&&!curr.exempt){tp+=(curr.participated||0);tf+=(curr.totalFights||0);}
+  // weeks[] is reverse-chronological (newest first); oldest = highest index
+  let firstWeekIdx=-1;
+  for(let i=weeks.length-1;i>=0;i--){
+    if(weeks[i].players.some(x=>x.name===playerName)){firstWeekIdx=i;break;}
+  }
+  weeks.forEach((w,i)=>{
+    if(i===firstWeekIdx) return; // skip pity week
+    const p=w.players.find(x=>x.name===playerName);
+    if(p&&!p.exempt){tp+=(p.participated||0);tf+=(p.totalFights||0);}
+  });
+  // Only count current week if the player has prior saved history
+  if(firstWeekIdx>=0){
+    const curr=merged.find(x=>x.name===playerName);
+    if(curr&&!curr.exempt){tp+=(curr.participated||0);tf+=(curr.totalFights||0);}
+  }
   return tf>0?tp/tf:0;
 }
 
@@ -1021,7 +1047,7 @@ function renderGlory(isRandom){
   const pos=['🥇','🥈','🥉'];
   const subtitle=isRandom
     ?'🎲 Random roll — equal chance for all roster members. No medal data this week.'
-    :'Weighted lottery — must earn medals in all 3 clash rounds or you\'re out. Weight = medals × (1 + mean participation %). Mean participation = your average across ALL saved weeks (~50-100%). More medals + higher historical participation = better odds. <span style="color:var(--boss)">Boss Phase medals tracked separately.</span>';
+    :'Weighted lottery — must earn medals in all 3 clash rounds or you\'re out. Weight = medals × (1 + mean participation %). Mean participation = your average across saved weeks (~50-100%); a new member\'s first week is a free pity week and doesn\'t count. More medals + higher historical participation = better odds. <span style="color:var(--boss)">Boss Phase medals tracked separately.</span>';
   let html=`<div class="glory-sec">
     <div class="glory-title">👑 Glory Members of the Week</div>
     <div class="glory-sub">${subtitle}</div>
@@ -1119,10 +1145,41 @@ async function removeFromRoster(name){
 }
 
 // ════════════════════════════════
+//  VICE LEADERS UI
+// ════════════════════════════════
+function renderVice(){
+  const c=document.getElementById('vice-chips');
+  if(!c)return;
+  if(!viceLeaders.length){c.innerHTML='<div style="color:var(--muted);font-size:12px">No leaders set — every roster member will be eligible for glory.</div>';return;}
+  c.innerHTML=viceLeaders.slice().sort((a,b)=>a.localeCompare(b)).map(name=>`
+    <div class="rchip">
+      <span class="rchip-name">${esc(name)}</span>
+      <button onclick="removeFromVice('${name.replace(/'/g,"\\'")}')">×</button>
+    </div>`).join('');
+}
+async function addToVice(){
+  const inp=document.getElementById('vice-input');
+  const name=inp.value.trim();
+  if(!name)return;
+  if(!viceLeaders.find(r=>r.toLowerCase()===name.toLowerCase())){
+    viceLeaders.push(name);
+    await saveVice();
+    toast(`Added "${name}" as leader`,'success');
+  }
+  inp.value='';renderVice();
+}
+async function removeFromVice(name){
+  viceLeaders=viceLeaders.filter(r=>r!==name);
+  await saveVice();renderVice();
+  toast(`Removed "${name}" from leaders`,'info');
+}
+
+// ════════════════════════════════
 //  STATS
 // ════════════════════════════════
 function renderStats(){
   renderRoster();
+  renderVice();
   const allP=new Set();let totM=0;
   weeks.forEach(w=>w.players.forEach(p=>{allP.add(p.name);totM+=p.total;}));
   document.getElementById('overview-stats').innerHTML=`
