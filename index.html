@@ -453,7 +453,7 @@ let merged=[];
 let gloryW=[];
 let weeks=[];
 let roster=[]; // saved player names for fuzzy matching
-let viceLeaders=['bzoei','cappmeister','silasp']; // leaders + vice leaders excluded from glory lottery (overridden from Firebase)
+let viceLeaders=['bzoei','Capp.','silasp']; // leaders + vice leaders excluded from glory lottery (overridden from Firebase)
 FIGHTS.forEach(f=>{fdata[f.id]={shots:[],parsed:[]};});
 
 // ════════════════════════════════
@@ -528,6 +528,56 @@ async function init(){
       });
     });
     if(fixed) await saveWeeks();
+  }
+  // One-time merge: cappmeister renamed to "Capp." — consolidate all stats under the new name
+  {
+    const FROM='cappmeister', TO='Capp.';
+    const eq=(a,b)=>a.toLowerCase()===b.toLowerCase();
+    let rosterChanged=false, viceChanged=false, weeksChanged=false;
+
+    const rOld=roster.findIndex(r=>eq(r,FROM));
+    if(rOld>=0){
+      if(roster.some(r=>eq(r,TO))) roster.splice(rOld,1);
+      else roster[rOld]=TO;
+      rosterChanged=true;
+    }
+
+    const vOld=viceLeaders.findIndex(r=>eq(r,FROM));
+    if(vOld>=0){
+      if(viceLeaders.some(r=>eq(r,TO))) viceLeaders.splice(vOld,1);
+      else viceLeaders[vOld]=TO;
+      viceChanged=true;
+    }
+
+    weeks.forEach(w=>{
+      const op=w.players.find(p=>eq(p.name,FROM));
+      if(op){
+        const np=w.players.find(p=>eq(p.name,TO));
+        if(np){
+          np.total=(np.total||0)+(op.total||0);
+          np.boss=(np.boss||0)+(op.boss||0);
+          np.clash=(np.clash||0)+(op.clash||0);
+          np.participated=Math.max(np.participated||0,op.participated||0);
+          np.totalFights=Math.max(np.totalFights||0,op.totalFights||0);
+          np.exempt=!!(np.exempt||op.exempt);
+          w.players=w.players.filter(p=>p!==op);
+        } else op.name=TO;
+        weeksChanged=true;
+      }
+      const og=w.gloryWinners.find(g=>eq(g.name,FROM));
+      if(og){
+        const ng=w.gloryWinners.find(g=>eq(g.name,TO));
+        if(ng){
+          ng.medals=(ng.medals||0)+(og.medals||0);
+          w.gloryWinners=w.gloryWinners.filter(g=>g!==og);
+        } else og.name=TO;
+        weeksChanged=true;
+      }
+    });
+
+    if(rosterChanged) await saveRoster();
+    if(viceChanged)   await saveVice();
+    if(weeksChanged)  await saveWeeks();
   }
   buildCards();
   prewarmOCR();
