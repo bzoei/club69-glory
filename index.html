@@ -1151,6 +1151,20 @@ function renderGlory(isRandom){
 async function saveWeek(){
   const wlEl=document.getElementById('week-label');
   const label=wlEl.value.trim()||wlEl.placeholder||`Week ${weeks.length+1}`;
+  const dup=weeks.find(w=>w.label.trim().toLowerCase()===label.toLowerCase());
+  if(dup){
+    const ok=confirm(
+      `A week named "${dup.label}" already exists (saved ${dup.date}).\n\n`+
+      `Saving again with the same name will create a DUPLICATE entry — `+
+      `your all-time leaderboard and weeks-tracked count will double-count this week.\n\n`+
+      `Click "Cancel" and rename this week first (recommended), or click "OK" to save anyway.`
+    );
+    if(!ok){
+      wlEl.focus();wlEl.select();
+      toast('Save cancelled — change the week label to continue.','info');
+      return;
+    }
+  }
   weeks.unshift({
     id:Date.now(),label,date:new Date().toLocaleDateString(),
     players:merged.map(p=>({name:p.name,total:p.total,boss:p.boss,clash:p.clash,participated:p.participated,totalFights:p.totalFights,exempt:!!p.exempt})),
@@ -1315,7 +1329,13 @@ function editWeekLabel(wi,el){
   inp.focus();inp.select();
   async function commit(){
     const v=inp.value.trim();
-    if(v && v!==old){weeks[wi].label=v;await saveWeeks();toast(`Week renamed: "${old}" → "${v}"`,'success');}
+    if(v && v!==old){
+      const dup=weeks.find((w,i)=>i!==wi && w.label.trim().toLowerCase()===v.toLowerCase());
+      if(dup && !confirm(`Another week is already named "${dup.label}". Use this name anyway? (Both weeks will keep their data, but the leaderboard will show two entries with the same label.)`)){
+        renderStats();return;
+      }
+      weeks[wi].label=v;await saveWeeks();toast(`Week renamed: "${old}" → "${v}"`,'success');
+    }
     renderStats();
   }
   inp.addEventListener('blur',commit);
