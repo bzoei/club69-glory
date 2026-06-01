@@ -5,10 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Clan Glory Manager · Survivor.io</title>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
 :root {
   --gold:#FFB800; --gold-light:#FFD54F; --gold-dark:#E65100;
@@ -397,42 +396,55 @@ async function syncHash(){
   if(stored!==_SEED){await seedHash();}
 }
 
-async function checkSession(){
-  try{initFirebase();}catch(e){console.error('Firebase init error:',e);}
-  try{await ensureAuth();}catch(e){console.error('Firebase auth error:',e);}
+// Kick Firebase init off in the background; the login UI does NOT wait for it.
+let _fbReady=null;
+function ensureFirebaseReady(){
+  if(_fbReady) return _fbReady;
+  _fbReady=(async()=>{
+    try{initFirebase();}catch(e){console.error('Firebase init error:',e);}
+    try{await ensureAuth();}catch(e){console.error('Firebase auth error:',e);}
+    try{await syncHash();}catch(e){console.warn('syncHash:',e);}
+  })();
+  return _fbReady;
+}
 
-  let h;
-  try{
-    await syncHash(); // ensure Firebase has the current password hash
-    h=await getStoredHash();
-    if(!h){await seedHash();h=_SEED;}
-  }catch(e){
-    console.error('Firebase error:',e);
-    toast('Could not connect to Firebase','error');
-  }
-
+function checkSession(){
+  // Compare against the in-code _SEED — no network round-trip needed.
   const s=sessionStorage.getItem('gls');
-  if(h&&s&&s===h.slice(0,16)){
+  if(s && s===_SEED.slice(0,16)){
     document.getElementById('login-screen').style.display='none';
-    init();
+    ensureFirebaseReady().then(()=>init());
   }else{
     document.getElementById('login-screen').style.display='flex';
+    ensureFirebaseReady(); // warm up in background while user types
   }
 }
+
+let _loginBusy=false;
 async function doLogin(){
+  if(_loginBusy) return;
   const v=document.getElementById('pw-input').value;if(!v)return;
-  const ih=await sha256(v);
-  let sh=await getStoredHash();if(!sh){await seedHash();sh=_SEED;}
-  if(ih===sh){
-    sessionStorage.setItem('gls',sh.slice(0,16));
-    document.getElementById('login-screen').style.display='none';init();
-  }else{
-    const el=document.getElementById('login-err');el.textContent='Incorrect password.';
-    document.getElementById('pw-input').value='';setTimeout(()=>el.textContent='',3000);
+  const btn=document.querySelector('.login-box .btn-gold');
+  _loginBusy=true; if(btn) btn.disabled=true;
+  try{
+    const ih=await sha256(v);
+    if(ih===_SEED){
+      sessionStorage.setItem('gls',_SEED.slice(0,16));
+      document.getElementById('login-screen').style.display='none';
+      await ensureFirebaseReady();
+      init();
+    }else{
+      const el=document.getElementById('login-err');el.textContent='Incorrect password.';
+      document.getElementById('pw-input').value='';setTimeout(()=>el.textContent='',3000);
+    }
+  }finally{
+    _loginBusy=false; if(btn) btn.disabled=false;
   }
 }
 function logout(){sessionStorage.removeItem('gls');document.getElementById('login-screen').style.display='flex';document.getElementById('pw-input').value='';}
-checkSession();
+// Firebase scripts are deferred — wait for DOMContentLoaded so `firebase` is defined.
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',checkSession);
+else checkSession();
 
 // ════════════════════════════════
 //  STATE
@@ -580,7 +592,10 @@ async function init(){
     if(weeksChanged)  await saveWeeks();
   }
   buildCards();
-  prewarmOCR();
+  // Defer OCR engine download to idle time so it doesn't compete with
+  // post-login Firestore reads and initial render.
+  if(window.requestIdleCallback) requestIdleCallback(()=>prewarmOCR(),{timeout:3000});
+  else setTimeout(prewarmOCR,1500);
   // Auto-fill week label with last passed ISO week
   const wl=document.getElementById('week-label');
   if(wl && !wl.value){
@@ -626,7 +641,7 @@ function buildCards(){
       <div class="ocr-prog-wrap" id="pw-${f.id}"><div class="ocr-prog-fill" id="pf-${f.id}" style="width:0%"></div></div>
       <div class="review-panel" id="rv-${f.id}"></div>
       <div class="ocr-bar">
-        <button class="ocrbtn" id="ob-${f.id}" onclick="scanFight('${f.id}')" disabled>
+        <button class="ocrbtn" id="ob-${f.id}" onclick="scanFight('${f.id}')">
           <span id="obs-${f.id}">🔍 Scan</span>
         </button>
       </div>`;
@@ -666,28 +681,41 @@ function refreshCard(fid){
 // ════════════════════════════════
 let _worker=null;
 let _workerReady=false;
+let _tesseractLoading=null;
+
+// Lazy-load the Tesseract library (~ several hundred KB) only when needed.
+function loadTesseractLib(){
+  if(window.Tesseract) return Promise.resolve();
+  if(_tesseractLoading) return _tesseractLoading;
+  _tesseractLoading=new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js';
+    s.onload=()=>resolve();
+    s.onerror=()=>{_tesseractLoading=null;reject(new Error('Tesseract failed to load'));};
+    document.head.appendChild(s);
+  });
+  return _tesseractLoading;
+}
 
 async function prewarmOCR(){
-  // Called at login — loads the engine silently in background
-  // so the first real scan button click is instant
+  // Kicked off after login — loads engine silently so the first Scan click is instant.
+  // Idle-time scheduled to avoid competing with other post-login work.
   try{
+    await loadTesseractLib();
     _worker=await Tesseract.createWorker('eng',1,{logger:()=>{}});
     await _worker.setParameters({
       tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_#<>@. ',
       preserve_interword_spaces:'1',
     });
     _workerReady=true;
-    // Update all scan buttons to show ready state
-    document.querySelectorAll('.ocrbtn').forEach(b=>{
-      if(b.disabled) b.querySelector('span').textContent='🔍 Scan';
-    });
   }catch(e){console.warn('OCR prewarm failed',e);}
 }
 
 async function getWorker(statusEl){
   if(_workerReady) return _worker;
-  // Fallback: init now if prewarm hasn't finished yet
-  statusEl.innerHTML='<span class="spinner-el"></span> Loading OCR engine…';
+  // Lazy-init: download Tesseract + traineddata on first Scan click.
+  if(statusEl) statusEl.innerHTML='<span class="spinner-el"></span> Loading OCR engine…';
+  await loadTesseractLib();
   if(!_worker){
     _worker=await Tesseract.createWorker('eng',1,{logger:()=>{}});
     await _worker.setParameters({
