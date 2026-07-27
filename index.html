@@ -465,6 +465,7 @@ let merged=[];
 let gloryW=[];
 let weeks=[];
 let roster=[]; // saved player names for fuzzy matching
+let manualPlayers=[]; // roster members the scan missed, added by hand this week
 let viceLeaders=['bzoei','Capp.','silasp']; // leaders + vice leaders excluded from glory lottery (overridden from Firebase)
 FIGHTS.forEach(f=>{fdata[f.id]={shots:[],parsed:[]};});
 
@@ -475,7 +476,15 @@ async function learnNames(names){
   let changed=false;
   names.forEach(name=>{
     const k=name.toLowerCase();
-    if(!roster.find(r=>r.toLowerCase()===k)){roster.push(name);changed=true;}
+    if(roster.find(r=>r.toLowerCase()===k)) return;
+    // A read that lands near an existing member without matching them is
+    // almost always a bad read, not a new member. Learning it creates a second
+    // roster entry that then competes with the real member on every future
+    // scan and can swallow their row — leave it for the review panel instead.
+    if(matchRoster(name).ambiguous) return;
+    const norm=ocrNormalize(name);
+    if(roster.some(r=>levenshtein(norm,ocrNormalize(r))<=2)) return;
+    roster.push(name);changed=true;
   });
   if(changed) await saveRoster();
 }
@@ -493,29 +502,75 @@ function levenshtein(a,b){
   return dp[m][n];
 }
 
-// OCR-normalized comparison — treat commonly confused characters as same
+// OCR-normalized comparison — fold the character shapes Tesseract routinely
+// confuses so they cost nothing when two names are compared.
+// Every rule below must be written in lower case: the string is lower-cased
+// first, so the old I/O/S/Z rules matched nothing and silently did nothing.
 function ocrNormalize(s){
-  return s.toLowerCase()
-    .replace(/[l|I]/g,'i')   // l, |, I → i
-    .replace(/[O]/g,'0')     // O → 0
-    .replace(/[S]/g,'s')     // S → s
-    .replace(/[Z]/g,'z');    // Z → z
+  return String(s==null?'':s).toLowerCase()
+    // Multi-character shapes first — "rn" reads back as "m", "vv" as "w".
+    // These have to run before the single-character folds, or the l → i rule
+    // below breaks them apart.
+    .replace(/rn/g,'m')
+    .replace(/vv/g,'w')
+    // Single-character shapes.
+    .replace(/[1l|!]/g,'i')
+    .replace(/0/g,'o')
+    .replace(/5/g,'s')
+    .replace(/2/g,'z')
+    .replace(/8/g,'b')
+    .replace(/9/g,'g')
+    // Spacing and punctuation inside a name is pure OCR noise, and a wrapped
+    // name gets re-joined without its space.
+    .replace(/[^a-z0-9]/g,'');
+}
+
+// Resolve an OCR'd name against the roster.
+// Returns {name, matched, ambiguous}:
+//   matched   — the name is a roster member (exact, or close enough to be sure)
+//   ambiguous — two members were equally close, so we deliberately pick
+//               neither. Guessing here merges two players onto one row, which
+//               makes a member disappear from the standings entirely.
+function matchRoster(rawName){
+  const name=String(rawName==null?'':rawName).trim();
+  if(!name || !roster.length) return {name,matched:false,ambiguous:false};
+
+  const exact=roster.find(r=>r.toLowerCase()===name.toLowerCase());
+  if(exact) return {name:exact,matched:true,ambiguous:false};
+
+  const normRaw=ocrNormalize(name);
+  if(!normRaw) return {name,matched:false,ambiguous:false};
+
+  let best=null,bestDist=Infinity,secondDist=Infinity;
+  for(const r of roster){
+    const normR=ocrNormalize(r);
+    if(!normR) continue;
+    if(normR===normRaw) return {name:r,matched:true,ambiguous:false};
+
+    let d=levenshtein(normRaw,normR);
+    // The name column is a fixed-width crop, so a long name can be clipped and
+    // read back as a prefix of itself. Score those against the part that was
+    // actually visible instead of charging for the tail the crop never saw.
+    if(normRaw.length>=5 && normR.length>normRaw.length)
+      d=Math.min(d, levenshtein(normRaw, normR.slice(0,normRaw.length)));
+
+    // Budget from the longer of the two names. Sizing it off the OCR read
+    // alone shrank the budget exactly when a clipped or garbled read needed it
+    // to be widest, which is how long names failed to match themselves.
+    const allow=Math.max(2, Math.floor(Math.max(normRaw.length,normR.length)*0.34));
+    if(d>allow) continue;
+
+    if(d<bestDist){secondDist=bestDist;bestDist=d;best=r;}
+    else if(d<secondDist){secondDist=d;}
+  }
+
+  if(best===null) return {name,matched:false,ambiguous:false};
+  if(bestDist===secondDist) return {name,matched:false,ambiguous:true};
+  return {name:best,matched:true,ambiguous:false};
 }
 
 function fuzzyMatch(rawName){
-  if(!roster.length) return rawName;
-  const normRaw=ocrNormalize(rawName);
-
-  let best=null,bestDist=Infinity;
-  for(const r of roster){
-    // Check OCR-normalized exact match first (handles i↔l, O↔0 etc.)
-    if(ocrNormalize(r)===normRaw) return r;
-    const d=levenshtein(rawName,r);
-    if(d<bestDist){bestDist=d;best=r;}
-  }
-  // Allow ~25% edit distance, minimum 2
-  const maxDist=Math.max(2, Math.floor(rawName.length*0.25));
-  return (best && bestDist<=maxDist) ? best : rawName;
+  return matchRoster(rawName).name;
 }
 
 // ════════════════════════════════
@@ -748,7 +803,7 @@ function editReviewName(fid,idx,newName){
   if(!newName) return;
   fdata[fid].parsed[idx].name=newName;
   // Re-deduplicate in case name now matches another row
-  const seen={};
+  const seen=Object.create(null);
   fdata[fid].parsed=fdata[fid].parsed.filter(p=>{
     const k=p.name.toLowerCase();
     if(seen[k]){ seen[k].medals=Math.max(seen[k].medals,p.medals); return false; }
@@ -781,7 +836,11 @@ async function scanFight(fid){
   fd.shots.forEach(s=>s.status='scan');refreshCard(fid);
 
   const worker=await getWorker(span);
-  const found={};
+  // Object.create(null): a plain {} inherits keys like "constructor", so a
+  // member whose name collides with one is treated as already present and
+  // never stored.
+  const found=Object.create(null);
+  const collided=new Set();
 
   for(let i=0;i<fd.shots.length;i++){
     span.innerHTML=`<span class="spinner-el"></span> Scanning ${i+1}/${fd.shots.length}…`;
@@ -792,9 +851,14 @@ async function scanFight(fid){
       const numResult=await worker.recognize(numImg);
       parseLines(nameResult.data.text, numResult.data.text).forEach(({name,medals})=>{
         // Fuzzy-correct the OCR name against known roster
-        const corrected=fuzzyMatch(name.trim());
+        const raw=name.trim();
+        const corrected=fuzzyMatch(raw);
         const k=corrected.toLowerCase();
-        if(!found[k]||medals>found[k].medals) found[k]={name:corrected,medals};
+        // Two different rows resolving to one member means someone's row is
+        // about to be swallowed. Keep the better read, but flag it so the
+        // member count never quietly comes up short.
+        if(found[k] && levenshtein(ocrNormalize(found[k].raw),ocrNormalize(raw))>2) collided.add(corrected);
+        if(!found[k]||medals>found[k].medals) found[k]={name:corrected,medals,raw};
       });
       fd.shots[i].status='ok';
     }catch(e){fd.shots[i].status='err';}
@@ -820,6 +884,7 @@ async function scanFight(fid){
   const eligible=merged.filter(p=>p.total>0);
   document.getElementById('btn-glory').disabled=eligible.length<3;
   toast(`✓ ${FIGHTS.find(f=>f.id===fid).label}: ${fd.parsed.length} players`,'success');
+  if(collided.size) toast(`⚠ Two rows read as ${[...collided].join(', ')} — check the names above`,'error');
 }
 
 // ── Image preprocessing for better OCR accuracy ──────────
@@ -868,53 +933,89 @@ async function preprocessImg(dataUrl){
 
 
 // ── Parse OCR output from two separate crops (names + numbers) ────────────
+// UI chrome that can leak into the name crop. The \b matters: without it this
+// was a bare prefix test, so a member called e.g. "Mineral" or "Bestie" was
+// thrown away before anything else got to see the row.
+const JUNK_LINE=/^(round|member|result|phase|phases|boss|clash|time|left|only|best|current|ally|lineup|turf|lunar|mine|expedition|attack)\b/i;
+
+// Is this line a known member in its own right — allowing only for OCR
+// character confusion, not for missing or extra characters?
+function isFullName(n){
+  const norm=ocrNormalize(n);
+  if(!norm) return false;
+  return roster.some(r=>ocrNormalize(r)===norm);
+}
+
+// Is this line a known member at all, fuzzy matching included?
+function isKnownName(n){
+  return roster.length>0 && matchRoster(n).matched;
+}
+
 function parseLines(nameRaw, numRaw){
   const out=[];
-  // Parse name lines — just player names, no numbers expected
-  const nameLines=nameRaw.split('\n').map(l=>l.trim()).filter(l=>l.length>=1);
-  // Parse number lines — just digits
-  const numLines=numRaw.split('\n').map(l=>l.trim()).filter(l=>l.length>=1);
 
   // Extract clean names
-  const rawNames=[];
-  for(const line of nameLines){
-    let name=line.replace(/^[^a-zA-Z0-9]+/,'')   // leading junk
-                  .replace(/[^\x20-\x7E]/g,'')     // non-ASCII glyphs
-                  .replace(/\s+/g,' ')
-                  .trim();
-    if(name.length<1)continue;
-    if(/^(round|member|result|phase|boss|clash|time|left|only|best|current|ally|lineup|turf|lunar|mine|expedition|phases|attack)/i.test(name))continue;
-    rawNames.push(name);
+  let names=[];
+  for(const line of nameRaw.split('\n')){
+    const name=line.replace(/^[^a-zA-Z0-9]+/,'')   // leading junk
+                   .replace(/[^\x20-\x7E]/g,'')     // non-ASCII glyphs
+                   .replace(/\s+/g,' ')
+                   .trim();
+    if(!name || !/[a-zA-Z]/.test(name)) continue;
+    if(JUNK_LINE.test(name) && !isFullName(name)) continue;
+    names.push(name);
   }
 
   // Extract clean numbers
   const nums=[];
-  for(const line of numLines){
-    const m=line.match(/(\d+)/);
+  for(const line of numRaw.split('\n')){
+    const m=line.trim().match(/(\d+)/);
     if(!m)continue;
     const val=parseInt(m[1],10);
     if(val<0||val>99999)continue;
     nums.push(val);
   }
 
-  // If we have more name lines than number lines, some names probably wrapped
-  // to 2 lines in the game UI. Merge consecutive name lines until counts match.
-  const names=[...rawNames];
-  while(names.length>nums.length && names.length>1){
-    // Find the shortest line — that's most likely a wrapped continuation
-    let minLen=Infinity, minIdx=-1;
-    for(let i=1;i<names.length;i++){  // skip index 0
-      if(names[i].length<minLen){minLen=names[i].length;minIdx=i;}
+  // ── Re-join names the game UI wrapped onto two lines ──
+  // Ask the roster which lines are continuations rather than assuming the
+  // shortest line is one. The shortest line is very often a different, short
+  // member; gluing it to its neighbour destroyed two rows at once — one member
+  // vanished from the standings and another came back with a mangled name.
+  // Only join when the result is a member name outright and the first half is
+  // not already one on its own. A wrapped first half ("Broman") normally still
+  // fuzzy-matches its own full name, so the test here has to be the strict
+  // isFullName rather than isKnownName or the join never fires.
+  for(let i=names.length-1;i>0;i--){
+    if(isFullName(names[i])) continue;               // stands on its own
+    const joined=names[i-1]+names[i];
+    if(joined.length<=30 && isFullName(joined) && !isFullName(names[i-1])){
+      names[i-1]=joined;
+      names.splice(i,1);
     }
-    if(minIdx>0){
-      // Merge with previous line
-      names[minIdx-1]+=names[minIdx];
-      names.splice(minIdx,1);
-    }else break;
   }
 
-  // Filter names that are too short or lack letters (after merging)
-  const cleanNames=names.filter(n=>n.length>=2 && /[a-zA-Z]/.test(n) && n.length<=30);
+  // Drop leftover single-character fragments, but only after the join above
+  // has had its chance to consume them. Doing it first (as before) let stray
+  // specks of noise count as rows and skew the merge below.
+  names=names.filter(n=>n.length>=2);
+
+  // Fallback for names the roster does not know yet: while there are still
+  // more name lines than medal counts, merge the shortest *unrecognised* line
+  // into the line above it. A recognised member is never merged away.
+  while(names.length>nums.length && names.length>1){
+    let minLen=Infinity, minIdx=-1;
+    for(let i=1;i<names.length;i++){  // skip index 0
+      if(isKnownName(names[i])) continue;
+      if(names[i].length<minLen){minLen=names[i].length;minIdx=i;}
+    }
+    if(minIdx<1) break;
+    names[minIdx-1]+=names[minIdx];
+    names.splice(minIdx,1);
+  }
+
+  // Keep every remaining row. An over-long line is clamped rather than thrown
+  // away — discarding it silently lost a member from the scan.
+  const cleanNames=names.filter(n=>/[a-zA-Z]/.test(n)).map(n=>n.length>30?n.slice(0,30):n);
 
   // Match names to numbers by row position
   const count=Math.min(cleanNames.length,nums.length);
@@ -948,7 +1049,7 @@ function resolvePlayerName(name){
 }
 
 function mergeAll(){
-  const map={};
+  const map=Object.create(null);
   const activeF=FIGHTS.filter(f=>fdata[f.id].parsed.length>0);
   // Only count clash for glory (boss tracked separately)
   const gloryF=activeF.filter(f=>f.type==='clash');
@@ -967,6 +1068,12 @@ function mergeAll(){
       }
     });
   });
+  // Roster members added by hand from the "not found" banner — the scan saw
+  // nothing for them, so they enter at zero medals.
+  manualPlayers.forEach(name=>{
+    const k=name.toLowerCase();
+    if(!map[k])map[k]={name,total:0,boss:0,clash:0,fights:new Set(),gloryFights:new Set()};
+  });
   // Preserve existing exemption state across re-merges
   const prevExempt=new Set(merged.filter(p=>p.exempt).map(p=>p.name.toLowerCase()));
   merged=Object.values(map).map(p=>({
@@ -977,6 +1084,11 @@ function mergeAll(){
     noParticipation:p.total===0&&gloryF.length>0,
     exempt:prevExempt.has(p.name.toLowerCase())
   })).sort((a,b)=>b.total-a.total);
+}
+
+function addMissingPlayer(name){
+  if(!manualPlayers.some(n=>n.toLowerCase()===name.toLowerCase())) manualPlayers.push(name);
+  mergeAll();renderResults();
 }
 
 function toggleExempt(name){
@@ -990,12 +1102,21 @@ function renderResults(){
   if(!merged.length){area.innerHTML='';return;}
   const tf=FIGHTS.filter(f=>fdata[f.id].parsed.length>0).length;
   const kicks=merged.filter(p=>p.noParticipation);
+  // Which roster members did the scan not produce a row for? Without this the
+  // only symptom of a misread name is a member count that is quietly one short.
+  const present=new Set(merged.map(p=>p.name.toLowerCase()));
+  const missing=roster.filter(r=>!present.has(r.toLowerCase()));
   let html=`<div class="res-card">
     <div class="res-head">
       <div class="res-title">📋 Combined Medal Standings</div>
-      <div class="pill"><b>${merged.length}</b> members · ${tf} fights scanned</div>
+      <div class="pill"><b>${merged.length}</b> members${roster.length?` of ${roster.length} on roster`:''} · ${tf} fights scanned</div>
       ${kicks.length?`<div style="color:var(--red);font-size:12px">⚠ ${kicks.length} with zero medals</div>`:''}
     </div>
+    ${missing.length?`<div style="margin:0 14px 12px;padding:10px 12px;background:var(--bg4);border:1px solid var(--red);border-radius:8px">
+      <div style="color:var(--red);font-size:12px;font-weight:600;margin-bottom:7px">⚠ ${missing.length} roster member${missing.length===1?'':'s'} not found in the scan</div>
+      <div style="color:var(--muted);font-size:11px;margin-bottom:8px">Either the name was misread — fix it in the fight's review panel above — or they sat this week out, in which case add them at 0 medals.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${missing.map(n=>`<button class="exempt-btn" onclick="addMissingPlayer('${esc(n).replace(/'/g,"\\'")}')" title="Add ${esc(n)} with 0 medals">+ ${esc(n)}</button>`).join('')}</div>
+    </div>`:''}
     <div class="tscroll"><table class="rtable">
     <thead><tr><th>#</th><th>PLAYER</th><th>TOTAL</th><th style="color:var(--boss)">BOSS</th><th style="color:var(--clash)">CLASH</th><th>PARTICIPATION</th><th>STATUS</th><th>EXEMPT</th></tr></thead>
     <tbody>`;
