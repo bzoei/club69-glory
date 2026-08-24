@@ -145,6 +145,37 @@ header{position:sticky;top:0;z-index:100;background:rgba(10,12,20,.96);border-bo
 .show-more-btn{background:var(--bg4);border:1px solid var(--border);color:var(--gold);font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;padding:8px 22px;border-radius:8px;cursor:pointer;letter-spacing:.5px;transition:border-color .2s}
 .show-more-btn:hover{border-color:var(--gold)}
 
+/* ── MEDAL TREND CHART (line/area, touch-friendly) ── */
+.mchart-wrap{position:relative}
+.mchart-scroll{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y}
+.mchart-svg{display:block}
+.mchart-grid{stroke:var(--border);stroke-width:1;opacity:.6}
+.mchart-axis{fill:var(--muted);font-size:9px;font-family:'Exo 2',sans-serif}
+.mchart-xlabel{fill:var(--muted);font-size:9px;font-family:'Exo 2',sans-serif}
+.mchart-endlabel{fill:var(--text);font-size:11px;font-weight:700;font-family:'Rajdhani',sans-serif}
+.mchart-crosshair{stroke:var(--muted);stroke-width:1;stroke-dasharray:2,3;pointer-events:none;transition:opacity .1s}
+.mchart-tip{position:absolute;top:0;transform:translate(-50%,-4px);background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 10px;pointer-events:none;white-space:nowrap;opacity:0;transition:opacity .1s;z-index:5;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.mchart-tip-v{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;color:var(--text)}
+.mchart-tip-l{font-size:10px;color:var(--muted);margin-top:1px}
+.mchart-scrollhint{font-size:10px;color:var(--muted);text-align:center;margin-top:4px;opacity:.7}
+
+/* ── CLAN TRENDS (prominent default tab) ── */
+.trend-hero{background:linear-gradient(135deg,rgba(255,184,0,.08),rgba(206,147,216,.06));border:1px solid rgba(255,184,0,.25);border-radius:14px;padding:18px 20px;margin-bottom:16px}
+.trend-hero-top{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px}
+.trend-hero-label{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;letter-spacing:.5px;color:var(--boss)}
+.trend-hero-delta{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;padding:2px 10px;border-radius:20px}
+.trend-hero-delta.up{color:var(--green);background:rgba(76,175,80,.12)}
+.trend-hero-delta.down{color:var(--red);background:rgba(244,67,54,.12)}
+.trend-hero-delta.flat{color:var(--muted);background:var(--bg4)}
+.trend-hero-desc{font-size:11px;color:var(--muted);margin-bottom:10px}
+.trend-section{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:14px}
+.trend-section-top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.trend-section-title{font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700}
+.trend-section-stat{font-size:12px;color:var(--muted)}
+.trend-toggle-row{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.trend-toggle{background:var(--bg3);border:1px solid var(--border);color:var(--muted);font-family:'Rajdhani',sans-serif;font-weight:700;font-size:12px;letter-spacing:.3px;padding:6px 14px;border-radius:20px;cursor:pointer;transition:all .2s}
+.trend-toggle.active{color:var(--gold);border-color:var(--gold);background:rgba(255,184,0,.08)}
+
 @media(max-width:700px){
   .page{padding:12px}
   header{padding:0 10px}
@@ -182,13 +213,19 @@ header{position:sticky;top:0;z-index:100;background:rgba(10,12,20,.96);border-bo
     <div class="stats-grid" id="overview-stats"></div>
 
     <div class="tab-nav" id="tab-nav">
-      <button class="tab-btn active" data-tab="leaderboard">Leaderboard</button>
+      <button class="tab-btn active" data-tab="trends">📈 Clan Trends</button>
+      <button class="tab-btn" data-tab="leaderboard">Leaderboard</button>
       <button class="tab-btn" data-tab="insights">Weekly Insights</button>
       <button class="tab-btn" data-tab="history">History</button>
       <button class="tab-btn" data-tab="hof">Hall of Fame</button>
     </div>
 
-    <div class="tab-panel active" id="panel-leaderboard">
+    <div class="tab-panel active" id="panel-trends">
+      <div id="trend-hero"></div>
+      <div id="trend-sections"></div>
+    </div>
+
+    <div class="tab-panel" id="panel-leaderboard">
       <div class="sec-title">📊 All-Time Leaderboard <span style="font-size:11px;color:var(--muted);font-weight:400;font-family:'Exo 2',sans-serif">(tap a name to see charts)</span></div>
       <div id="leaderboard-list" class="lb-list"></div>
     </div>
@@ -196,8 +233,6 @@ header{position:sticky;top:0;z-index:100;background:rgba(10,12,20,.96);border-bo
     <div class="tab-panel" id="panel-insights">
       <div class="sec-title">🏆 This Week's Highlights</div>
       <div id="insights-highlights" class="insight-grid"></div>
-      <div class="sec-title">📈 Clan Trends</div>
-      <div id="insights-trends" class="trend-chart-wrap"></div>
       <div class="sec-title">🔀 Compare Players</div>
       <div id="insights-compare" class="compare-wrap"></div>
     </div>
@@ -244,6 +279,143 @@ function median(arr){
   return s.length%2?s[m]:Math.round((s[m-1]+s[m])/2);
 }
 
+// ════════════════════════════════
+//  MEDAL TREND CHART — line/area, works on touch (tap+drag) and mouse
+//  (hover), scrolls to reveal the full week history instead of squeezing
+//  everything into a fixed width.
+// ════════════════════════════════
+function renderMedalChart(container, points, color, opts){
+  opts=opts||{};
+  container.innerHTML='';
+  if(!points.length){container.innerHTML='<div class="empty">No data.</div>';return;}
+  const STEP=52,PADL=10,PADR=34,PADT=22,PADB=22,H=140;
+  const n=points.length;
+  const maxV=Math.max(...points.map(p=>p.value),1);
+  // Nice-numbers axis: pick a clean round step (1/2/5×10^n) so every
+  // gridline lands on a value someone would actually write down, instead of
+  // arbitrary thirds of the max.
+  const rawMax=maxV*1.18;
+  const tickStep=(()=>{
+    const raw=rawMax/3;
+    const mag=Math.pow(10,Math.floor(Math.log10(Math.max(raw,1e-9))));
+    const norm=raw/mag;
+    const step=norm<=1?1:norm<=2?2:norm<=5?5:10;
+    return step*mag;
+  })();
+  const tickCount=Math.max(1,Math.ceil(rawMax/tickStep));
+  const niceMax=tickStep*tickCount;
+  const innerW=STEP*Math.max(n-1,0);
+  const W=PADL+16+innerW+PADR;
+  const x=i=>n===1?W/2:PADL+8+i*STEP;
+  const y=v=>PADT+(H-PADT-PADB)*(1-v/niceMax);
+  const baseline=y(0);
+  const ns='http://www.w3.org/2000/svg';
+  const svg=document.createElementNS(ns,'svg');
+  svg.setAttribute('width',W);svg.setAttribute('height',H);
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  svg.classList.add('mchart-svg');
+
+  for(let g=0;g<=tickCount;g++){
+    const gv=tickStep*g, gy=y(gv);
+    const line=document.createElementNS(ns,'line');
+    line.setAttribute('x1',PADL);line.setAttribute('x2',W-PADR+16);
+    line.setAttribute('y1',gy);line.setAttribute('y2',gy);
+    line.setAttribute('class','mchart-grid');
+    svg.appendChild(line);
+    const t=document.createElementNS(ns,'text');
+    t.setAttribute('x',W-PADR+20);t.setAttribute('y',gy+3);
+    t.setAttribute('class','mchart-axis');
+    t.textContent=gv>=1000?(Math.round(gv/100)/10)+'k':Math.round(gv);
+    svg.appendChild(t);
+  }
+
+  let ad='M'+x(0)+','+baseline;
+  points.forEach((p,i)=>{ad+=' L'+x(i)+','+y(p.value);});
+  ad+=' L'+x(n-1)+','+baseline+' Z';
+  const area=document.createElementNS(ns,'path');
+  area.setAttribute('d',ad);area.setAttribute('fill',color);area.setAttribute('opacity','0.12');area.setAttribute('stroke','none');
+  svg.appendChild(area);
+
+  let ld='';
+  points.forEach((p,i)=>{ld+=(i===0?'M':'L')+x(i)+','+y(p.value)+' ';});
+  const linePath=document.createElementNS(ns,'path');
+  linePath.setAttribute('d',ld);linePath.setAttribute('fill','none');linePath.setAttribute('stroke',color);
+  linePath.setAttribute('stroke-width','2');linePath.setAttribute('stroke-linejoin','round');linePath.setAttribute('stroke-linecap','round');
+  svg.appendChild(linePath);
+
+  const cross=document.createElementNS(ns,'line');
+  cross.setAttribute('y1',PADT-6);cross.setAttribute('y2',H-PADB+2);
+  cross.setAttribute('class','mchart-crosshair');cross.style.opacity='0';
+  svg.appendChild(cross);
+
+  points.forEach((p,i)=>{
+    const cx=x(i),cy=y(p.value),isLast=i===n-1;
+    const ring=document.createElementNS(ns,'circle');
+    ring.setAttribute('cx',cx);ring.setAttribute('cy',cy);ring.setAttribute('r',isLast?6:3.5);ring.setAttribute('fill','var(--bg4)');
+    svg.appendChild(ring);
+    const dot=document.createElementNS(ns,'circle');
+    dot.setAttribute('cx',cx);dot.setAttribute('cy',cy);dot.setAttribute('r',isLast?4:2.5);dot.setAttribute('fill',color);
+    svg.appendChild(dot);
+    if(isLast){
+      const lbl=document.createElementNS(ns,'text');
+      lbl.setAttribute('x',cx);lbl.setAttribute('y',Math.max(cy-10,12));
+      lbl.setAttribute('text-anchor',n===1?'middle':'end');
+      lbl.setAttribute('class','mchart-endlabel');
+      lbl.textContent=p.value.toLocaleString();
+      svg.appendChild(lbl);
+    }
+    const xl=document.createElementNS(ns,'text');
+    xl.setAttribute('x',cx);xl.setAttribute('y',H-6);xl.setAttribute('text-anchor','middle');
+    xl.setAttribute('class','mchart-xlabel');
+    xl.textContent=(p.label||'').replace(/Week /,'W').replace(/ ·.*/,'');
+    svg.appendChild(xl);
+  });
+
+  const outer=document.createElement('div');outer.className='mchart-wrap';
+  const wrap=document.createElement('div');wrap.className='mchart-scroll';
+  wrap.appendChild(svg);outer.appendChild(wrap);
+  const tip=document.createElement('div');tip.className='mchart-tip';outer.appendChild(tip);
+  container.appendChild(outer);
+  const hint=document.createElement('div');hint.className='mchart-scrollhint';
+  hint.textContent='← swipe to see earlier weeks';
+  hint.style.display='none';
+  container.appendChild(hint);
+
+  function showTip(idx){
+    idx=Math.max(0,Math.min(n-1,idx));
+    const p=points[idx];
+    cross.setAttribute('x1',x(idx));cross.setAttribute('x2',x(idx));cross.style.opacity='1';
+    tip.innerHTML='';
+    const vEl=document.createElement('div');vEl.className='mchart-tip-v';vEl.textContent=p.value.toLocaleString()+(opts.unit||'');
+    const lEl=document.createElement('div');lEl.className='mchart-tip-l';lEl.textContent=p.label;
+    tip.appendChild(vEl);tip.appendChild(lEl);
+    // Position relative to the visible (scrolled) viewport, not the full
+    // unscrolled SVG — otherwise the tooltip lands off-screen once the
+    // chart has auto-scrolled to the latest week and gets clipped away.
+    const localX=x(idx)-wrap.scrollLeft;
+    tip.style.left=Math.min(Math.max(localX,44),outer.clientWidth-44)+'px';
+    tip.style.opacity='1';
+  }
+  function hideTip(){cross.style.opacity='0';tip.style.opacity='0';}
+  function idxFromEvent(e){
+    const rect=svg.getBoundingClientRect();
+    const localX=e.clientX-rect.left;
+    return Math.round((localX-(PADL+8))/STEP);
+  }
+  // Mouse: live hover follows the pointer and clears on leave. Touch has no
+  // real "leave" — pointerleave fires right after the finger lifts — so a
+  // tap instead pins the tooltip until the reader taps elsewhere.
+  svg.addEventListener('pointermove',e=>{if(e.pointerType!=='touch')showTip(idxFromEvent(e));});
+  svg.addEventListener('pointerdown',e=>showTip(idxFromEvent(e)));
+  svg.addEventListener('pointerleave',e=>{if(e.pointerType!=='touch')hideTip();});
+  document.addEventListener('pointerdown',e=>{if(!outer.contains(e.target))hideTip();});
+
+  requestAnimationFrame(()=>{
+    wrap.scrollLeft=wrap.scrollWidth;
+    if(wrap.scrollWidth>wrap.clientWidth+4) hint.style.display='block';
+  });
+}
+
 // ── TABS ──
 document.getElementById('tab-nav').addEventListener('click',e=>{
   const btn=e.target.closest('.tab-btn');
@@ -273,6 +445,7 @@ async function init(){
 
 function renderAll(){
   renderOverview();
+  renderTrends();
   renderLeaderboard();
   renderInsights();
   renderHistory();
@@ -288,6 +461,100 @@ function renderOverview(){
     <div class="scard"><div class="lbl">UNIQUE PLAYERS</div><div class="val">${allP.size}</div></div>
     <div class="scard"><div class="lbl">BOSS MEDALS</div><div class="val">${totBoss.toLocaleString()}</div></div>
     <div class="scard"><div class="lbl">CLASH MEDALS</div><div class="val">${totM.toLocaleString()}</div></div>`;
+}
+
+// ── CLAN TRENDS (default tab — clan-wide medal trends over time) ──
+function clanWeeklyAverage(field){
+  // Average medals per active (non-exempt) member who scored in that field, per week.
+  return [...weeks].reverse().map(w=>{
+    const a=w.players.filter(p=>!p.exempt&&(field==='boss'?(p.boss||0):p.total)>0);
+    if(!a.length)return 0;
+    const sum=a.reduce((s,p)=>s+(field==='boss'?(p.boss||0):p.total),0);
+    return Math.round(sum/a.length);
+  });
+}
+function clanWeeklyParticipation(){
+  return [...weeks].reverse().map(w=>{
+    const a=w.players.filter(p=>!p.exempt&&(p.totalFights||0)>0);
+    if(!a.length)return 0;
+    const tp=a.reduce((s,p)=>s+(p.participated||0),0);
+    const tf=a.reduce((s,p)=>s+(p.totalFights||0),0);
+    return tf>0?Math.round(tp/tf*100):0;
+  });
+}
+function clanWeeklyRoster(){
+  return [...weeks].reverse().map(w=>w.players.length);
+}
+function weekOverWeekDelta(arr){
+  if(arr.length<2)return null;
+  const last=arr[arr.length-1],prev=arr[arr.length-2];
+  if(prev===0)return null;
+  return (last-prev)/prev*100;
+}
+function deltaBadge(delta){
+  if(delta===null)return '<span class="trend-hero-delta flat">—</span>';
+  if(delta>0.05)return `<span class="trend-hero-delta up">▲ +${delta.toFixed(1)}% vs last week</span>`;
+  if(delta<-0.05)return `<span class="trend-hero-delta down">▼ ${delta.toFixed(1)}% vs last week</span>`;
+  return `<span class="trend-hero-delta flat">flat vs last week</span>`;
+}
+function renderTrends(){
+  const hero=document.getElementById('trend-hero');
+  const sections=document.getElementById('trend-sections');
+  if(!weeks.length){
+    hero.innerHTML='<div class="empty">No weeks saved yet — trends will appear once the first week is uploaded.</div>';
+    sections.innerHTML='';
+    return;
+  }
+  const labels=[...weeks].reverse().map(w=>w.label);
+  const avgBoss=clanWeeklyAverage('boss');
+  const avgClash=clanWeeklyAverage('clash');
+  const partPct=clanWeeklyParticipation();
+  const rosterCt=clanWeeklyRoster();
+  const bossPoints=labels.map((l,i)=>({label:l,value:avgBoss[i]}));
+  const clashPoints=labels.map((l,i)=>({label:l,value:avgClash[i]}));
+  const partPoints=labels.map((l,i)=>({label:l,value:partPct[i]}));
+  const rosterPoints=labels.map((l,i)=>({label:l,value:rosterCt[i]}));
+
+  const bossDelta=weekOverWeekDelta(avgBoss);
+  hero.innerHTML=`
+    <div class="trend-hero">
+      <div class="trend-hero-top">
+        <div class="trend-hero-label">🏰 BOSS PHASE — CLAN AVERAGE</div>
+        ${deltaBadge(bossDelta)}
+      </div>
+      <div class="trend-hero-desc">Average Boss Phase medals per active member, week over week — the single biggest lever for clan boss damage. This is the headline number to watch.</div>
+      <div id="trend-chart-boss"></div>
+    </div>`;
+  renderMedalChart(document.getElementById('trend-chart-boss'),bossPoints,'var(--boss)');
+
+  const clashDelta=weekOverWeekDelta(avgClash);
+  const partDelta=weekOverWeekDelta(partPct);
+  const rosterDelta=weekOverWeekDelta(rosterCt);
+  sections.innerHTML=`
+    <div class="trend-section">
+      <div class="trend-section-top">
+        <div class="trend-section-title" style="color:var(--accent)">⚔ Clash — Clan Average</div>
+        <div class="trend-section-stat">${clashDelta===null?'—':(clashDelta>=0?'+':'')+clashDelta.toFixed(1)+'% vs last week'}</div>
+      </div>
+      <div id="trend-chart-clash"></div>
+    </div>
+    <div class="trend-section">
+      <div class="trend-section-top">
+        <div class="trend-section-title" style="color:var(--green)">🎯 Participation Rate</div>
+        <div class="trend-section-stat">${partDelta===null?'—':(partDelta>=0?'+':'')+partDelta.toFixed(1)+'pt vs last week'}</div>
+      </div>
+      <div id="trend-chart-part"></div>
+    </div>
+    <div class="trend-section">
+      <div class="trend-section-top">
+        <div class="trend-section-title" style="color:var(--gold)">👥 Active Roster Size</div>
+        <div class="trend-section-stat">${rosterDelta===null?'—':(rosterDelta>=0?'+':'')+rosterDelta.toFixed(1)+'% vs last week'}</div>
+      </div>
+      <div id="trend-chart-roster"></div>
+    </div>`;
+  renderMedalChart(document.getElementById('trend-chart-clash'),clashPoints,'var(--accent)');
+  renderMedalChart(document.getElementById('trend-chart-part'),partPoints,'var(--green)',{unit:'%'});
+  renderMedalChart(document.getElementById('trend-chart-roster'),rosterPoints,'var(--gold)');
 }
 
 // ── BOSS DELTA CALCULATION ──
@@ -362,50 +629,37 @@ function toggleChart(sid,name){
   const div=el.querySelector('.chart-inner');
   const data=[...weeks].reverse().map(w=>{const p=w.players.find(x=>x.name===name);return{label:w.label,clash:p?p.total:0,boss:p?(p.boss||0):0};});
   if(!data.length){div.innerHTML='<div class="empty">No data.</div>';el.classList.add('open');return;}
-  const maxB=Math.max(...data.map(d=>d.boss),1);
-  const maxC=Math.max(...data.map(d=>d.clash),1);
   const gw=weeks.filter(w=>w.gloryWinners.some(g=>g.name===name));
   const totalBoss=data.reduce((s,d)=>s+d.boss,0);
   const totalClash=data.reduce((s,d)=>s+d.clash,0);
-
-  // Boss weekly deltas
-  let bossDeltas='';
-  for(let i=1;i<data.length;i++){
-    if(data[i-1].boss>0&&data[i].boss>0){
-      const d=((data[i].boss-data[i-1].boss)/data[i-1].boss*100);
-      bossDeltas+=`<span style="font-size:10px;color:${d>=0?'var(--green)':'var(--red)'}">${data[i].label.replace(/Week /,'W').replace(/ ·.*/,'')}: ${d>=0?'+':''}${d.toFixed(1)}%</span> `;
-    }
-  }
 
   div.innerHTML=`
     <div class="chart-summary">
       Boss: <b class="boss-val">${totalBoss.toLocaleString()}</b> · Clash: <b>${totalClash.toLocaleString()}</b>
       ${gw.length?` · 👑 Glory: <b>${gw.length}</b>`:''}
     </div>
-    ${bossDeltas?`<div style="margin-bottom:8px;line-height:1.8">${bossDeltas}</div>`:''}
-    <div class="chart-legend"><span><span class="ldot boss"></span>Boss</span><span><span class="ldot clash"></span>Clash</span></div>
     <div class="chart-cluster">
       <div class="cluster-section">
         <div class="cluster-label" style="color:var(--boss)">BOSS</div>
-        <div class="cbars">${data.map(d=>{const h=Math.round(d.boss/maxB*100);return`<div class="bcol"><div class="bfill boss-bar" style="height:${h}px" data-tip="${d.boss} — ${d.label}"></div><div class="blbl">${d.label.replace(/Week /,'W').replace(/ ·.*/,'')}</div></div>`;}).join('')}</div>
+        <div id="pc-boss-${sid}"></div>
       </div>
       <div class="cluster-section">
         <div class="cluster-label" style="color:var(--accent)">CLASH</div>
-        <div class="cbars">${data.map(d=>{const h=Math.round(d.clash/maxC*100);return`<div class="bcol"><div class="bfill clash-bar" style="height:${h}px" data-tip="${d.clash} — ${d.label}"></div><div class="blbl">${d.label.replace(/Week /,'W').replace(/ ·.*/,'')}</div></div>`;}).join('')}</div>
+        <div id="pc-clash-${sid}"></div>
       </div>
     </div>`;
   el.classList.add('open');
+  renderMedalChart(document.getElementById('pc-boss-'+sid), data.map(d=>({label:d.label,value:d.boss})), 'var(--boss)');
+  renderMedalChart(document.getElementById('pc-clash-'+sid), data.map(d=>({label:d.label,value:d.clash})), 'var(--accent)');
 }
 
 // ── INSIGHTS ──
 function renderInsights(){
   const hl=document.getElementById('insights-highlights');
-  const trends=document.getElementById('insights-trends');
   const cmp=document.getElementById('insights-compare');
 
   if(!weeks.length){
     hl.innerHTML='<div class="empty">No data yet.</div>';
-    trends.innerHTML='<div class="empty">No trend data yet.</div>';
     cmp.innerHTML='<div class="empty">Need data to compare.</div>';
     return;
   }
@@ -484,27 +738,6 @@ function renderInsights(){
     </div>`;
   }
   hl.innerHTML=hlHtml||'<div class="empty">Not enough data for highlights.</div>';
-
-  // Clan trends chart
-  const ordered=[...weeks].reverse();
-  const avgBoss=ordered.map(w=>{const a=w.players.filter(p=>!p.exempt&&(p.boss||0)>0);return a.length?Math.round(a.reduce((s,p)=>s+(p.boss||0),0)/a.length):0;});
-  const avgClash=ordered.map(w=>{const a=w.players.filter(p=>!p.exempt&&p.total>0);return a.length?Math.round(a.reduce((s,p)=>s+p.total,0)/a.length):0;});
-  const maxTB=Math.max(...avgBoss,1);
-  const maxTC=Math.max(...avgClash,1);
-
-  trends.innerHTML=`
-    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Average medals per member per week</div>
-    <div class="chart-legend"><span><span class="ldot boss"></span>Avg Boss</span><span><span class="ldot clash"></span>Avg Clash</span></div>
-    <div class="chart-cluster">
-      <div class="cluster-section">
-        <div class="cluster-label" style="color:var(--boss)">AVG BOSS</div>
-        <div class="cbars">${ordered.map((w,i)=>{const h=Math.round(avgBoss[i]/maxTB*100);return`<div class="bcol"><div class="bfill boss-bar" style="height:${h}px" data-tip="Avg ${avgBoss[i]} — ${w.label}"></div><div class="blbl">${w.label.replace(/Week /,'W').replace(/ ·.*/,'')}</div></div>`;}).join('')}</div>
-      </div>
-      <div class="cluster-section">
-        <div class="cluster-label" style="color:var(--accent)">AVG CLASH</div>
-        <div class="cbars">${ordered.map((w,i)=>{const h=Math.round(avgClash[i]/maxTC*100);return`<div class="bcol"><div class="bfill clash-bar" style="height:${h}px" data-tip="Avg ${avgClash[i]} — ${w.label}"></div><div class="blbl">${w.label.replace(/Week /,'W').replace(/ ·.*/,'')}</div></div>`;}).join('')}</div>
-      </div>
-    </div>`;
 
   // Player comparison
   const allNames=new Set();
