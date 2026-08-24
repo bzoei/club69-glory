@@ -44,6 +44,11 @@ nav{display:flex;gap:3px}
 .nb{background:none;border:none;color:var(--muted);font-family:'Exo 2',sans-serif;font-size:13px;font-weight:600;padding:7px 13px;border-radius:8px;cursor:pointer;transition:all .2s;white-space:nowrap}
 .nb:hover{color:var(--text);background:var(--surface)}
 .nb.on{color:var(--gold);background:rgba(255,184,0,.1)}
+.pubstats-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:linear-gradient(135deg,rgba(108,99,255,.1),rgba(255,184,0,.06));border:1px solid rgba(108,99,255,.3);border-radius:12px;padding:14px 18px;margin-bottom:22px}
+.pubstats-banner-text{font-size:13px;color:var(--muted)}
+.pubstats-banner-text b{color:var(--text)}
+.pubstats-banner a{text-decoration:none;background:var(--accent);color:#fff;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;letter-spacing:.5px;padding:8px 18px;border-radius:8px;white-space:nowrap;transition:opacity .2s}
+.pubstats-banner a:hover{opacity:.88}
 .logoutbtn{background:none;border:1px solid var(--border);color:var(--muted);font-family:'Exo 2',sans-serif;font-size:12px;padding:5px 11px;border-radius:6px;cursor:pointer;transition:all .2s;white-space:nowrap}
 .logoutbtn:hover{border-color:var(--red);color:var(--red)}
 
@@ -220,6 +225,20 @@ tr.inactive-row td{text-decoration:line-through;text-decoration-color:var(--mute
 .pct-red{color:#f44336;font-weight:600}
 .blbl{font-size:9px;color:var(--muted);text-align:center;overflow:hidden;width:100%;white-space:nowrap;text-overflow:ellipsis}
 
+/* ── MEDAL TREND CHART (line/area, touch-friendly) ── */
+.mchart-wrap{position:relative}
+.mchart-scroll{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y}
+.mchart-svg{display:block}
+.mchart-grid{stroke:var(--border);stroke-width:1;opacity:.6}
+.mchart-axis{fill:var(--muted);font-size:9px;font-family:'Exo 2',sans-serif}
+.mchart-xlabel{fill:var(--muted);font-size:9px;font-family:'Exo 2',sans-serif}
+.mchart-endlabel{fill:var(--text);font-size:11px;font-weight:700;font-family:'Rajdhani',sans-serif}
+.mchart-crosshair{stroke:var(--muted);stroke-width:1;stroke-dasharray:2,3;pointer-events:none;transition:opacity .1s}
+.mchart-tip{position:absolute;top:0;transform:translate(-50%,-4px);background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 10px;pointer-events:none;white-space:nowrap;opacity:0;transition:opacity .1s;z-index:5;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.mchart-tip-v{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;color:var(--text)}
+.mchart-tip-l{font-size:10px;color:var(--muted);margin-top:1px}
+.mchart-scrollhint{font-size:10px;color:var(--muted);text-align:center;margin-top:4px;opacity:.7}
+
 /* ── TOAST ── */
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:11px 20px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:9999;box-shadow:0 8px 30px rgba(0,0,0,.5);max-width:90vw;text-align:center}
 #toast.show{opacity:1}
@@ -230,9 +249,12 @@ tr.inactive-row td{text-decoration:line-through;text-decoration-color:var(--mute
 
 @media(max-width:600px){
   .page{padding:12px}
-  header{padding:0 10px}
-  .hlogo{font-size:15px}
-  .nb{padding:6px 9px;font-size:11px}
+  header{padding:0 8px;gap:4px}
+  .hlogo{font-size:14px}
+  .hlogo span{display:none}
+  nav{gap:1px}
+  .nb{padding:6px 7px;font-size:11px}
+  .logoutbtn{padding:5px 8px;font-size:11px}
   .fight-grid{grid-template-columns:1fr}
   .gcard{max-width:100%}
   .wbar input{width:100%}
@@ -251,6 +273,15 @@ tr.inactive-row td{text-decoration:line-through;text-decoration-color:var(--mute
 .roster-add input:focus{border-color:var(--accent)}
 .roster-add button{background:var(--bg4);border:1px solid var(--border);color:var(--text);font-family:'Rajdhani',sans-serif;font-weight:600;font-size:13px;padding:7px 16px;border-radius:8px;cursor:pointer;transition:all .2s;white-space:nowrap}
 .roster-add button:hover{border-color:var(--accent);color:var(--accent)}
+.bulk-toggle{background:transparent!important;border:1px dashed var(--border)!important;color:var(--muted)!important;font-family:'Exo 2',sans-serif!important;font-weight:400!important;font-size:12px!important}
+.bulk-toggle:hover{border-color:var(--accent)!important;color:var(--accent)!important}
+.bulk-add{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.bulk-add textarea{width:100%;background:var(--bg4);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:13px;padding:10px 12px;outline:none;resize:vertical;transition:border-color .2s}
+.bulk-add textarea:focus{border-color:var(--accent)}
+.bulk-add-btns{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;flex-wrap:wrap}
+.bulk-hint{font-size:11px;color:var(--muted)}
+.bulk-add-btns button{background:var(--bg4);border:1px solid var(--accent);color:var(--accent);font-family:'Rajdhani',sans-serif;font-weight:600;font-size:13px;padding:7px 18px;border-radius:8px;cursor:pointer;transition:all .2s}
+.bulk-add-btns button:hover{background:rgba(108,99,255,.15)}
 </style>
 </head>
 <body>
@@ -302,6 +333,10 @@ tr.inactive-row td{text-decoration:line-through;text-decoration-color:var(--mute
 <div class="page" id="page-stats">
   <div class="ptitle">Clan <span>Statistics</span></div>
   <div class="pdesc">Track medals, participation, and Glory history across all saved weeks.</div>
+  <div class="pubstats-banner">
+    <div class="pubstats-banner-text"><b>📊 Want to share this with the clan?</b> The public stats dashboard has trend graphs and doesn't need a password.</div>
+    <a href="stats.html" target="_blank" rel="noopener">Open Public Stats ↗</a>
+  </div>
   <div class="stats-grid" id="overview-stats"></div>
   <div class="sec-title">👥 Clan Roster <span style="font-size:12px;color:var(--muted);font-weight:400;font-family:'Exo 2',sans-serif">(used for OCR name correction)</span></div>
   <div class="roster-box" id="roster-box">
@@ -309,6 +344,14 @@ tr.inactive-row td{text-decoration:line-through;text-decoration-color:var(--mute
     <div class="roster-add">
       <input type="text" id="roster-input" placeholder="Add player name…" onkeydown="if(event.key==='Enter')addToRoster()">
       <button onclick="addToRoster()">+ Add</button>
+      <button class="bulk-toggle" onclick="toggleBulkRoster()">📋 Bulk add / paste list</button>
+    </div>
+    <div class="bulk-add" id="bulk-roster" style="display:none">
+      <textarea id="bulk-roster-input" rows="4" placeholder="Paste names — one per line, or comma-separated"></textarea>
+      <div class="bulk-add-btns">
+        <span class="bulk-hint">Existing names are skipped automatically</span>
+        <button onclick="bulkAddRoster()">Add All</button>
+      </div>
     </div>
   </div>
   <div class="sec-title">👑 Leaders &amp; Vice Leaders <span style="font-size:12px;color:var(--muted);font-weight:400;font-family:'Exo 2',sans-serif">(excluded from glory lottery)</span></div>
@@ -577,10 +620,32 @@ function fuzzyMatch(rawName){
 //  INIT / NAV
 // ════════════════════════════════
 async function init(){
+  // Show the upload UI immediately — it needs no Firestore data (FIGHTS is
+  // static), so building it up front means the page you actually work in
+  // (drag-drop + scan) is interactive right away instead of waiting behind
+  // the roster/history sync below.
+  buildCards();
+  // Auto-fill week label with last passed ISO week — also independent of Firebase.
+  const wl=document.getElementById('week-label');
+  if(wl && !wl.value){
+    const now=new Date();
+    const jan4=new Date(now.getFullYear(),0,4);
+    const start=new Date(jan4);start.setDate(jan4.getDate()-(jan4.getDay()||7)+1);
+    const weekNum=Math.floor((now-start)/(7*864e5))+1;
+    const yr=weekNum<=0?now.getFullYear()-1:now.getFullYear();
+    const wn=weekNum<=0?52:weekNum;
+    wl.value=`Week ${wn} - ${yr}`;
+  }
+  // Defer OCR engine download to idle time so it doesn't compete with the
+  // Firestore reads below or the initial render.
+  if(window.requestIdleCallback) requestIdleCallback(()=>prewarmOCR(),{timeout:3000});
+  else setTimeout(prewarmOCR,1500);
+
   toast('Syncing with Firebase…','info');
-  await loadWeeks();
-  await loadRoster();
-  await loadVice();
+  // These three docs are independent — fetch them in parallel instead of
+  // three sequential round-trips.
+  await Promise.all([loadWeeks(),loadRoster(),loadVice()]);
+
   // Auto-fix: resolve misspelled names in saved weeks against current roster
   if(roster.length && weeks.length){
     let fixed=false;
@@ -596,72 +661,7 @@ async function init(){
     });
     if(fixed) await saveWeeks();
   }
-  // One-time merge: cappmeister renamed to "Capp." — consolidate all stats under the new name
-  {
-    const FROM='cappmeister', TO='Capp.';
-    const eq=(a,b)=>a.toLowerCase()===b.toLowerCase();
-    let rosterChanged=false, viceChanged=false, weeksChanged=false;
 
-    const rOld=roster.findIndex(r=>eq(r,FROM));
-    if(rOld>=0){
-      if(roster.some(r=>eq(r,TO))) roster.splice(rOld,1);
-      else roster[rOld]=TO;
-      rosterChanged=true;
-    }
-
-    const vOld=viceLeaders.findIndex(r=>eq(r,FROM));
-    if(vOld>=0){
-      if(viceLeaders.some(r=>eq(r,TO))) viceLeaders.splice(vOld,1);
-      else viceLeaders[vOld]=TO;
-      viceChanged=true;
-    }
-
-    weeks.forEach(w=>{
-      const op=w.players.find(p=>eq(p.name,FROM));
-      if(op){
-        const np=w.players.find(p=>eq(p.name,TO));
-        if(np){
-          np.total=(np.total||0)+(op.total||0);
-          np.boss=(np.boss||0)+(op.boss||0);
-          np.clash=(np.clash||0)+(op.clash||0);
-          np.participated=Math.max(np.participated||0,op.participated||0);
-          np.totalFights=Math.max(np.totalFights||0,op.totalFights||0);
-          np.exempt=!!(np.exempt||op.exempt);
-          w.players=w.players.filter(p=>p!==op);
-        } else op.name=TO;
-        weeksChanged=true;
-      }
-      const og=w.gloryWinners.find(g=>eq(g.name,FROM));
-      if(og){
-        const ng=w.gloryWinners.find(g=>eq(g.name,TO));
-        if(ng){
-          ng.medals=(ng.medals||0)+(og.medals||0);
-          w.gloryWinners=w.gloryWinners.filter(g=>g!==og);
-        } else og.name=TO;
-        weeksChanged=true;
-      }
-    });
-
-    if(rosterChanged) await saveRoster();
-    if(viceChanged)   await saveVice();
-    if(weeksChanged)  await saveWeeks();
-  }
-  buildCards();
-  // Defer OCR engine download to idle time so it doesn't compete with
-  // post-login Firestore reads and initial render.
-  if(window.requestIdleCallback) requestIdleCallback(()=>prewarmOCR(),{timeout:3000});
-  else setTimeout(prewarmOCR,1500);
-  // Auto-fill week label with last passed ISO week
-  const wl=document.getElementById('week-label');
-  if(wl && !wl.value){
-    const now=new Date();
-    const jan4=new Date(now.getFullYear(),0,4);
-    const start=new Date(jan4);start.setDate(jan4.getDate()-(jan4.getDay()||7)+1);
-    const weekNum=Math.floor((now-start)/(7*864e5))+1;
-    const yr=weekNum<=0?now.getFullYear()-1:now.getFullYear();
-    const wn=weekNum<=0?52:weekNum;
-    wl.value=`Week ${wn} - ${yr}`;
-  }
   toast('✓ Data synced!','success');
 }
 function showPage(id){
@@ -1356,6 +1356,30 @@ async function removeFromRoster(name){
   roster=roster.filter(r=>r!==name);
   await saveRoster();renderRoster();
 }
+function toggleBulkRoster(){
+  const box=document.getElementById('bulk-roster');
+  const open=box.style.display!=='none';
+  box.style.display=open?'none':'block';
+  if(!open) document.getElementById('bulk-roster-input').focus();
+}
+async function bulkAddRoster(){
+  const ta=document.getElementById('bulk-roster-input');
+  const names=ta.value.split(/[\n,]/).map(n=>n.trim()).filter(Boolean);
+  if(!names.length)return;
+  let added=0;
+  names.forEach(name=>{
+    if(!roster.find(r=>r.toLowerCase()===name.toLowerCase())){roster.push(name);added++;}
+  });
+  if(added){
+    await saveRoster();
+    toast(`✓ Added ${added} player${added!==1?'s':''} to roster`,'success');
+  }else{
+    toast('No new names — all already on roster','info');
+  }
+  ta.value='';
+  document.getElementById('bulk-roster').style.display='none';
+  renderRoster();
+}
 
 // ════════════════════════════════
 //  VICE LEADERS UI
@@ -1495,6 +1519,143 @@ function pctClass(pct){
   return 'pct-red';
 }
 
+// ════════════════════════════════
+//  MEDAL TREND CHART — line/area, works on touch (tap+drag) and mouse
+//  (hover), scrolls to reveal the full week history instead of squeezing
+//  everything into a fixed width.
+// ════════════════════════════════
+function renderMedalChart(container, points, color, opts){
+  opts=opts||{};
+  container.innerHTML='';
+  if(!points.length){container.innerHTML='<div class="empty">No data.</div>';return;}
+  const STEP=52,PADL=10,PADR=34,PADT=22,PADB=22,H=140;
+  const n=points.length;
+  const maxV=Math.max(...points.map(p=>p.value),1);
+  // Nice-numbers axis: pick a clean round step (1/2/5×10^n) so every
+  // gridline lands on a value someone would actually write down, instead of
+  // arbitrary thirds of the max.
+  const rawMax=maxV*1.18;
+  const tickStep=(()=>{
+    const raw=rawMax/3;
+    const mag=Math.pow(10,Math.floor(Math.log10(Math.max(raw,1e-9))));
+    const norm=raw/mag;
+    const step=norm<=1?1:norm<=2?2:norm<=5?5:10;
+    return step*mag;
+  })();
+  const tickCount=Math.max(1,Math.ceil(rawMax/tickStep));
+  const niceMax=tickStep*tickCount;
+  const innerW=STEP*Math.max(n-1,0);
+  const W=PADL+16+innerW+PADR;
+  const x=i=>n===1?W/2:PADL+8+i*STEP;
+  const y=v=>PADT+(H-PADT-PADB)*(1-v/niceMax);
+  const baseline=y(0);
+  const ns='http://www.w3.org/2000/svg';
+  const svg=document.createElementNS(ns,'svg');
+  svg.setAttribute('width',W);svg.setAttribute('height',H);
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  svg.classList.add('mchart-svg');
+
+  for(let g=0;g<=tickCount;g++){
+    const gv=tickStep*g, gy=y(gv);
+    const line=document.createElementNS(ns,'line');
+    line.setAttribute('x1',PADL);line.setAttribute('x2',W-PADR+16);
+    line.setAttribute('y1',gy);line.setAttribute('y2',gy);
+    line.setAttribute('class','mchart-grid');
+    svg.appendChild(line);
+    const t=document.createElementNS(ns,'text');
+    t.setAttribute('x',W-PADR+20);t.setAttribute('y',gy+3);
+    t.setAttribute('class','mchart-axis');
+    t.textContent=gv>=1000?(Math.round(gv/100)/10)+'k':Math.round(gv);
+    svg.appendChild(t);
+  }
+
+  let ad='M'+x(0)+','+baseline;
+  points.forEach((p,i)=>{ad+=' L'+x(i)+','+y(p.value);});
+  ad+=' L'+x(n-1)+','+baseline+' Z';
+  const area=document.createElementNS(ns,'path');
+  area.setAttribute('d',ad);area.setAttribute('fill',color);area.setAttribute('opacity','0.12');area.setAttribute('stroke','none');
+  svg.appendChild(area);
+
+  let ld='';
+  points.forEach((p,i)=>{ld+=(i===0?'M':'L')+x(i)+','+y(p.value)+' ';});
+  const linePath=document.createElementNS(ns,'path');
+  linePath.setAttribute('d',ld);linePath.setAttribute('fill','none');linePath.setAttribute('stroke',color);
+  linePath.setAttribute('stroke-width','2');linePath.setAttribute('stroke-linejoin','round');linePath.setAttribute('stroke-linecap','round');
+  svg.appendChild(linePath);
+
+  const cross=document.createElementNS(ns,'line');
+  cross.setAttribute('y1',PADT-6);cross.setAttribute('y2',H-PADB+2);
+  cross.setAttribute('class','mchart-crosshair');cross.style.opacity='0';
+  svg.appendChild(cross);
+
+  points.forEach((p,i)=>{
+    const cx=x(i),cy=y(p.value),isLast=i===n-1;
+    const ring=document.createElementNS(ns,'circle');
+    ring.setAttribute('cx',cx);ring.setAttribute('cy',cy);ring.setAttribute('r',isLast?6:3.5);ring.setAttribute('fill','var(--bg4)');
+    svg.appendChild(ring);
+    const dot=document.createElementNS(ns,'circle');
+    dot.setAttribute('cx',cx);dot.setAttribute('cy',cy);dot.setAttribute('r',isLast?4:2.5);dot.setAttribute('fill',color);
+    svg.appendChild(dot);
+    if(isLast){
+      const lbl=document.createElementNS(ns,'text');
+      lbl.setAttribute('x',cx);lbl.setAttribute('y',Math.max(cy-10,12));
+      lbl.setAttribute('text-anchor',n===1?'middle':'end');
+      lbl.setAttribute('class','mchart-endlabel');
+      lbl.textContent=p.value.toLocaleString();
+      svg.appendChild(lbl);
+    }
+    const xl=document.createElementNS(ns,'text');
+    xl.setAttribute('x',cx);xl.setAttribute('y',H-6);xl.setAttribute('text-anchor','middle');
+    xl.setAttribute('class','mchart-xlabel');
+    xl.textContent=(p.label||'').replace(/Week /,'W').replace(/ ·.*/,'');
+    svg.appendChild(xl);
+  });
+
+  const outer=document.createElement('div');outer.className='mchart-wrap';
+  const wrap=document.createElement('div');wrap.className='mchart-scroll';
+  wrap.appendChild(svg);outer.appendChild(wrap);
+  const tip=document.createElement('div');tip.className='mchart-tip';outer.appendChild(tip);
+  container.appendChild(outer);
+  const hint=document.createElement('div');hint.className='mchart-scrollhint';
+  hint.textContent='← swipe to see earlier weeks';
+  hint.style.display='none';
+  container.appendChild(hint);
+
+  function showTip(idx){
+    idx=Math.max(0,Math.min(n-1,idx));
+    const p=points[idx];
+    cross.setAttribute('x1',x(idx));cross.setAttribute('x2',x(idx));cross.style.opacity='1';
+    tip.innerHTML='';
+    const vEl=document.createElement('div');vEl.className='mchart-tip-v';vEl.textContent=p.value.toLocaleString()+(opts.unit||'');
+    const lEl=document.createElement('div');lEl.className='mchart-tip-l';lEl.textContent=p.label;
+    tip.appendChild(vEl);tip.appendChild(lEl);
+    // Position relative to the visible (scrolled) viewport, not the full
+    // unscrolled SVG — otherwise the tooltip lands off-screen once the
+    // chart has auto-scrolled to the latest week and gets clipped away.
+    const localX=x(idx)-wrap.scrollLeft;
+    tip.style.left=Math.min(Math.max(localX,44),outer.clientWidth-44)+'px';
+    tip.style.opacity='1';
+  }
+  function hideTip(){cross.style.opacity='0';tip.style.opacity='0';}
+  function idxFromEvent(e){
+    const rect=svg.getBoundingClientRect();
+    const localX=e.clientX-rect.left;
+    return Math.round((localX-(PADL+8))/STEP);
+  }
+  // Mouse: live hover follows the pointer and clears on leave. Touch has no
+  // real "leave" — pointerleave fires right after the finger lifts — so a
+  // tap instead pins the tooltip until the reader taps elsewhere.
+  svg.addEventListener('pointermove',e=>{if(e.pointerType!=='touch')showTip(idxFromEvent(e));});
+  svg.addEventListener('pointerdown',e=>showTip(idxFromEvent(e)));
+  svg.addEventListener('pointerleave',e=>{if(e.pointerType!=='touch')hideTip();});
+  document.addEventListener('pointerdown',e=>{if(!outer.contains(e.target))hideTip();});
+
+  requestAnimationFrame(()=>{
+    wrap.scrollLeft=wrap.scrollWidth;
+    if(wrap.scrollWidth>wrap.clientWidth+4) hint.style.display='block';
+  });
+}
+
 let openChart=null;
 function toggleChart(name){
   const prev=document.querySelector('.player-chart-inline.open');
@@ -1505,8 +1666,6 @@ function toggleChart(name){
   const div=row.querySelector('.chart-content');
   const data=[...weeks].reverse().map(w=>{const p=w.players.find(x=>x.name===name);return{label:w.label,clash:p?p.total:0,boss:p?(p.boss||0):0};});
   if(!data.length){div.innerHTML='<div class="empty">No data.</div>';row.classList.add('open');return;}
-  const maxC=Math.max(...data.map(d=>d.clash),1);
-  const maxB=Math.max(...data.map(d=>d.boss),1);
   const gw=weeks.filter(w=>w.gloryWinners.some(g=>g.name===name));
   const totalClash=data.reduce((s,d)=>s+d.clash,0);
   const totalBoss=data.reduce((s,d)=>s+d.boss,0);
@@ -1515,19 +1674,21 @@ function toggleChart(name){
       Clash: <b style="color:var(--gold)">${totalClash.toLocaleString()}</b> · Boss: <b style="color:var(--boss)">${totalBoss.toLocaleString()}</b>
       ${gw.length?` · 👑 Glory titles: <b style="color:var(--gold)">${gw.length}</b>`:''}
     </div>
-    <div class="chart-legend"><span><span class="ldot clash"></span>Clash medals</span><span><span class="ldot boss"></span>Boss medals</span></div>
-    <div class="chart-cluster">
+    <div class="chart-cluster" style="flex-direction:column">
       <div class="cluster-section">
         <div class="cluster-label" style="color:var(--accent)">CLASH</div>
-        <div class="cbars">${data.map(d=>{const h=Math.round(d.clash/maxC*140);return`<div class="bcol"><div class="bfill" style="height:${h}px" data-tip="${d.clash} — ${d.label}"></div><div class="blbl">${d.label.replace(/Week /,'W')}</div></div>`;}).join('')}</div>
+        <div id="mc-clash-${safeChartId(name)}"></div>
       </div>
       <div class="cluster-section">
         <div class="cluster-label" style="color:var(--boss)">BOSS</div>
-        <div class="cbars">${data.map(d=>{const h=Math.round(d.boss/maxB*140);return`<div class="bcol"><div class="bfill boss-bar" style="height:${h}px" data-tip="${d.boss} — ${d.label}"></div><div class="blbl">${d.label.replace(/Week /,'W')}</div></div>`;}).join('')}</div>
+        <div id="mc-boss-${safeChartId(name)}"></div>
       </div>
     </div>`;
   row.classList.add('open');
+  renderMedalChart(document.getElementById('mc-clash-'+safeChartId(name)), data.map(d=>({label:d.label,value:d.clash})), 'var(--accent)');
+  renderMedalChart(document.getElementById('mc-boss-'+safeChartId(name)), data.map(d=>({label:d.label,value:d.boss})), 'var(--boss)');
 }
+function safeChartId(name){return name.replace(/[^a-zA-Z0-9]/g,'_');}
 
 // ════════════════════════════════
 //  TOAST
