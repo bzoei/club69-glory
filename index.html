@@ -506,6 +506,11 @@ const FIGHTS=[
 let fdata={};   // id -> {shots:[],parsed:[]}
 let merged=[];
 let gloryW=[];
+const GLORY_COUNT=6;                 // glory members awarded per week
+const GLORY_POS=['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣'];
+// Saved weeks can hold a different number of winners than GLORY_COUNT,
+// so the badge falls back to a plain rank for any slot past the list.
+const gloryPos=i=>GLORY_POS[i]||'#'+(i+1);
 let weeks=[];
 let roster=[]; // saved player names for fuzzy matching
 let manualPlayers=[]; // roster members the scan missed, added by hand this week
@@ -811,7 +816,7 @@ function editReviewName(fid,idx,newName){
   });
   mergeAll();renderResults();
   const eligible=merged.filter(p=>p.total>0);
-  document.getElementById('btn-glory').disabled=eligible.length<3;
+  document.getElementById('btn-glory').disabled=eligible.length<GLORY_COUNT;
 }
 
 function deleteReviewRow(fid,idx){
@@ -819,7 +824,7 @@ function deleteReviewRow(fid,idx){
   renderReview(fid);
   mergeAll();renderResults();
   const eligible=merged.filter(p=>p.total>0);
-  document.getElementById('btn-glory').disabled=eligible.length<3;
+  document.getElementById('btn-glory').disabled=eligible.length<GLORY_COUNT;
 }
 
 async function scanFight(fid){
@@ -882,7 +887,7 @@ async function scanFight(fid){
 
   mergeAll();renderResults();
   const eligible=merged.filter(p=>p.total>0);
-  document.getElementById('btn-glory').disabled=eligible.length<3;
+  document.getElementById('btn-glory').disabled=eligible.length<GLORY_COUNT;
   toast(`✓ ${FIGHTS.find(f=>f.id===fid).label}: ${fd.parsed.length} players`,'success');
   if(collided.size) toast(`⚠ Two rows read as ${[...collided].join(', ')} — check the names above`,'error');
 }
@@ -1142,7 +1147,7 @@ function editM(name,val){
   const p=merged.find(x=>x.name===name);
   if(p){p.total=parseInt(val)||0;merged.sort((a,b)=>b.total-a.total);}
   const el=merged.filter(x=>x.total>0);
-  document.getElementById('btn-glory').disabled=el.length<3;
+  document.getElementById('btn-glory').disabled=el.length<GLORY_COUNT;
 }
 
 // ════════════════════════════════
@@ -1200,11 +1205,11 @@ function weightedPick(pool){
 
 function runGlory(){
   const el=getGloryPool();
-  if(el.length<3){toast('Need ≥3 players with medals who participated in all clash fights!','error');return;}
+  if(el.length<GLORY_COUNT){toast(`Need ≥${GLORY_COUNT} players with medals who participated in all clash fights!`,'error');return;}
   const tot=el.reduce((s,p)=>s+gloryWeight(p),0);
   const pool=[...el];
   gloryW=[];
-  for(let i=0;i<3;i++){
+  for(let i=0;i<GLORY_COUNT;i++){
     const pick=weightedPick(pool);
     gloryW.push({...pick, prob:Math.round(gloryWeight(pick)/tot*1000)/10});
     pool.splice(pool.indexOf(pick),1);
@@ -1214,9 +1219,9 @@ function runGlory(){
 
 function randomRoll(){
   const pool=roster.filter(n=>!isGloryExempt(n));
-  if(pool.length<3){toast('Need ≥3 roster members (excl. exempt)!','error');return;}
+  if(pool.length<GLORY_COUNT){toast(`Need ≥${GLORY_COUNT} roster members (excl. exempt)!`,'error');return;}
   const shuffled=[...pool].sort(()=>Math.random()-0.5);
-  gloryW=shuffled.slice(0,3).map(name=>({name,total:0,prob:0}));
+  gloryW=shuffled.slice(0,GLORY_COUNT).map(name=>({name,total:0,prob:0}));
   renderGlory(true);
 }
 
@@ -1232,7 +1237,7 @@ function randomRerollOne(slot){
 
 function rerollOne(slot){
   const el=getGloryPool();
-  // Exclude the other two winners from the pool
+  // Exclude the other winners from the pool
   const otherNames=gloryW.filter((_,i)=>i!==slot).map(w=>w.name.toLowerCase());
   const pool=el.filter(p=>!otherNames.includes(p.name.toLowerCase()));
   if(!pool.length){toast('No other eligible players!','error');return;}
@@ -1243,7 +1248,6 @@ function rerollOne(slot){
 }
 
 function renderGlory(isRandom){
-  const pos=['🥇','🥈','🥉'];
   const subtitle=isRandom
     ?'🎲 Random roll — equal chance for all roster members. No medal data this week.'
     :'Weighted lottery — must earn medals in all 3 clash rounds or you\'re out. Weight = medals × (1 + mean participation %). Mean participation = your average across saved weeks (~50-100%); a new member\'s first week is a free pity week and doesn\'t count. More medals + higher historical participation = better odds. <span style="color:var(--boss)">Boss Phase medals tracked separately.</span>';
@@ -1252,7 +1256,7 @@ function renderGlory(isRandom){
     <div class="glory-sub">${subtitle}</div>
     <div class="gwinners">
     ${gloryW.map((w,i)=>`<div class="gcard">
-      <div class="gpos">${pos[i]}</div>
+      <div class="gpos">${gloryPos(i)}</div>
       <div class="gname">${esc(w.name)}</div>
       ${isRandom?'':`<div class="gmed">${w.total} medals</div><div class="gprob">~${w.prob}% chance</div>`}
       <button class="btn-reroll-one" onclick="${isRandom?`randomRerollOne(${i})`:`rerollOne(${i})`}" title="Re-roll this slot">🔄</button>
@@ -1438,7 +1442,7 @@ function renderStats(){
       </div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px">${w.players.length} members · ${w.players.reduce((s,p)=>s+p.total,0).toLocaleString()} medals</div>
       <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">GLORY MEMBERS</div>
-      ${w.gloryWinners.map((g,i)=>`<div class="gbrow"><span>${['🥇','🥈','🥉'][i]}</span><span class="nm gw-edit" onclick="editGloryWinner(${wi},${i},this)" title="Click to edit">${esc(g.name)}</span><span class="mt">${g.medals} 🏅</span></div>`).join('')}
+      ${w.gloryWinners.map((g,i)=>`<div class="gbrow"><span>${gloryPos(i)}</span><span class="nm gw-edit" onclick="editGloryWinner(${wi},${i},this)" title="Click to edit">${esc(g.name)}</span><span class="mt">${g.medals} 🏅</span></div>`).join('')}
     </div>`).join('');
 
   const counts={};weeks.forEach(w=>w.gloryWinners.forEach(g=>{counts[g.name]=(counts[g.name]||0)+1;}));
