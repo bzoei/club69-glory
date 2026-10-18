@@ -324,6 +324,15 @@ tr.inactive-row td{text-decoration:line-through;text-decoration-color:var(--mute
     <button class="btn-glory" style="background:linear-gradient(135deg,#6c63ff,#3f37c9)" onclick="randomRoll()">🎲 RANDOM ROLL</button>
   </div>
 
+  <details class="roster-box" id="wk-roster-box">
+    <summary style="cursor:pointer;font-weight:600">👥 Clan Roster <span id="wk-roster-count" style="color:var(--muted);font-weight:400;font-size:12px"></span> <span style="color:var(--muted);font-weight:400;font-size:12px">— add or remove players</span></summary>
+    <div class="roster-chips" id="wk-roster-chips" style="margin-top:12px"></div>
+    <div class="roster-add">
+      <input type="text" id="wk-roster-input" placeholder="Add player name…" onkeydown="if(event.key==='Enter')addToRoster('wk-roster-input')">
+      <button onclick="addToRoster('wk-roster-input')">+ Add</button>
+    </div>
+  </details>
+
   <div class="fight-grid" id="fight-grid"></div>
   <div id="results-area"></div>
   <div id="glory-area"></div>
@@ -514,28 +523,10 @@ const gloryPos=i=>GLORY_POS[i]||'#'+(i+1);
 let weeks=[];
 let roster=[]; // saved player names for fuzzy matching
 let manualPlayers=[]; // roster members the scan missed, added by hand this week
+let pendingNew=[];     // scanned names not on the roster — awaiting "new player?" answer
+let pendingLeft=[];    // roster members missing from the scan — awaiting "left?" answer
 let viceLeaders=['bzoei','Capp.','silasp']; // leaders + vice leaders excluded from glory lottery (overridden from Firebase)
 FIGHTS.forEach(f=>{fdata[f.id]={shots:[],parsed:[]};});
-
-// ════════════════════════════════
-//  ROSTER LEARNING
-// ════════════════════════════════
-async function learnNames(names){
-  let changed=false;
-  names.forEach(name=>{
-    const k=name.toLowerCase();
-    if(roster.find(r=>r.toLowerCase()===k)) return;
-    // A read that lands near an existing member without matching them is
-    // almost always a bad read, not a new member. Learning it creates a second
-    // roster entry that then competes with the real member on every future
-    // scan and can swallow their row — leave it for the review panel instead.
-    if(matchRoster(name).ambiguous) return;
-    const norm=ocrNormalize(name);
-    if(roster.some(r=>levenshtein(norm,ocrNormalize(r))<=2)) return;
-    roster.push(name);changed=true;
-  });
-  if(changed) await saveRoster();
-}
 
 // ════════════════════════════════
 //  FUZZY NAME MATCHING
@@ -667,6 +658,7 @@ async function init(){
     if(fixed) await saveWeeks();
   }
 
+  renderRoster();
   toast('✓ Data synced!','success');
 }
 function showPage(id){
@@ -872,8 +864,8 @@ async function scanFight(fid){
 
   pf.style.width='100%';
   fd.parsed=Object.values(found).sort((a,b)=>b.medals-a.medals);
-  // Save any new names to roster for future fuzzy matching
-  await learnNames(fd.parsed.map(p=>p.name));
+  // New names are no longer learned silently: renderResults asks once per
+  // name whether it is a new member or a misread (see the roster prompts).
 
   // Show editable review panel
   if(fd.parsed.length){
@@ -1093,7 +1085,78 @@ function mergeAll(){
 
 function addMissingPlayer(name){
   if(!manualPlayers.some(n=>n.toLowerCase()===name.toLowerCase())) manualPlayers.push(name);
+  refreshWeek();
+}
+
+function refreshWeek(){
   mergeAll();renderResults();
+  FIGHTS.forEach(f=>renderReview(f.id));
+  const eligible=merged.filter(p=>p.total>0);
+  document.getElementById('btn-glory').disabled=eligible.length<GLORY_COUNT;
+}
+
+// Rename every scanned row that resolves to oldName, merging into any row
+// that already carries newName.
+function renameScanned(oldName,newName){
+  const ok=oldName.toLowerCase();
+  FIGHTS.forEach(f=>{
+    const fd=fdata[f.id];
+    fd.parsed.forEach(p=>{if(resolvePlayerName(p.name).toLowerCase()===ok)p.name=newName;});
+    const seen=Object.create(null);
+    fd.parsed=fd.parsed.filter(p=>{
+      const k=p.name.toLowerCase();
+      if(seen[k]){seen[k].medals=Math.max(seen[k].medals,p.medals);return false;}
+      seen[k]=p;return true;
+    });
+  });
+}
+
+// Drop a player from this week's standings (all fights + manual adds).
+function removeFromWeek(name){
+  const k=name.toLowerCase();
+  FIGHTS.forEach(f=>{
+    fdata[f.id].parsed=fdata[f.id].parsed.filter(p=>resolvePlayerName(p.name).toLowerCase()!==k);
+  });
+  manualPlayers=manualPlayers.filter(n=>n.toLowerCase()!==k);
+}
+
+function removeWeekRow(i){
+  const p=merged[i];if(!p)return;
+  removeFromWeek(p.name);
+  refreshWeek();
+  toast(`Removed "${p.name}" from this week`,'info');
+}
+
+// "Is X a new player?" — yes: add to roster.
+async function answerNew(i){
+  const name=pendingNew[i];if(!name)return;
+  if(!roster.some(r=>r.toLowerCase()===name.toLowerCase())){roster.push(name);await saveRoster();}
+  renderRoster();refreshWeek();
+  toast(`✓ "${name}" added to the roster`,'success');
+}
+async function answerAllNew(){
+  const names=pendingNew.filter(n=>!roster.some(r=>r.toLowerCase()===n.toLowerCase()));
+  if(!names.length)return;
+  roster.push(...names);await saveRoster();
+  renderRoster();refreshWeek();
+  toast(`✓ Added ${names.length} player${names.length===1?'':'s'} to the roster`,'success');
+}
+// No: it's a misread of a roster member, or not a player at all.
+function answerNotNew(i,choice){
+  const name=pendingNew[i];if(!name||!choice)return;
+  if(choice==='__remove__'){removeFromWeek(name);toast(`Removed "${name}"`,'info');}
+  else{renameScanned(name,choice);toast(`"${name}" → "${choice}"`,'success');}
+  refreshWeek();
+}
+
+// "Has X left?" — yes: remove from roster (history is kept). No: add at 0.
+async function answerLeft(i,left){
+  const name=pendingLeft[i];if(!name)return;
+  if(left){
+    roster=roster.filter(r=>r!==name);await saveRoster();
+    renderRoster();refreshWeek();
+    toast(`"${name}" removed from the roster`,'info');
+  }else addMissingPlayer(name);
 }
 
 function toggleExempt(name){
@@ -1111,19 +1174,45 @@ function renderResults(){
   // only symptom of a misread name is a member count that is quietly one short.
   const present=new Set(merged.map(p=>p.name.toLowerCase()));
   const missing=roster.filter(r=>!present.has(r.toLowerCase()));
+  // Scanned names that match no roster member: a new player or a misread.
+  const rosterSet=new Set(roster.map(r=>r.toLowerCase()));
+  pendingNew=merged.map(p=>p.name).filter(n=>!rosterSet.has(n.toLowerCase()));
+  pendingLeft=missing;
+  const btn='class="exempt-btn" style="font-size:11px;padding:4px 10px"';
+  const prompts=[
+    ...pendingNew.map((n,i)=>{
+      // Offer the closest missing roster members first as the likely real name.
+      const opts=missing.slice().sort((a,b)=>levenshtein(ocrNormalize(n),ocrNormalize(a))-levenshtein(ocrNormalize(n),ocrNormalize(b)));
+      return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--border)">
+        <span style="flex:1;min-width:180px;font-size:13px">🆕 Is <b>${esc(n)}</b> a new player?</span>
+        <button ${btn} onclick="answerNew(${i})">✓ Yes, add to roster</button>
+        <select class="exempt-btn" style="font-size:11px;padding:4px 6px;background:var(--bg3)" onchange="answerNotNew(${i},this.value)">
+          <option value="">✗ No, it's…</option>
+          ${opts.map(o=>`<option value="${esc(o).replace(/"/g,'&quot;')}">${esc(o)}</option>`).join('')}
+          <option value="__remove__">not a player — remove</option>
+        </select>
+      </div>`;}),
+    ...pendingLeft.map((n,i)=>`<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--border)">
+        <span style="flex:1;min-width:180px;font-size:13px">👋 Is it correct that <b>${esc(n)}</b> has left?</span>
+        <button ${btn} onclick="answerLeft(${i},true)">✓ Yes, remove from roster</button>
+        <button ${btn} onclick="answerLeft(${i},false)">✗ No, add at 0 medals</button>
+      </div>`)
+  ];
   let html=`<div class="res-card">
     <div class="res-head">
       <div class="res-title">📋 Combined Medal Standings</div>
       <div class="pill"><b>${merged.length}</b> members${roster.length?` of ${roster.length} on roster`:''} · ${tf} fights scanned</div>
       ${kicks.length?`<div style="color:var(--red);font-size:12px">⚠ ${kicks.length} with zero medals</div>`:''}
     </div>
-    ${missing.length?`<div style="margin:0 14px 12px;padding:10px 12px;background:var(--bg4);border:1px solid var(--red);border-radius:8px">
-      <div style="color:var(--red);font-size:12px;font-weight:600;margin-bottom:7px">⚠ ${missing.length} roster member${missing.length===1?'':'s'} not found in the scan</div>
-      <div style="color:var(--muted);font-size:11px;margin-bottom:8px">Either the name was misread — fix it in the fight's review panel above — or they sat this week out, in which case add them at 0 medals.</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px">${missing.map(n=>`<button class="exempt-btn" onclick="addMissingPlayer('${esc(n).replace(/'/g,"\\'")}')" title="Add ${esc(n)} with 0 medals">+ ${esc(n)}</button>`).join('')}</div>
+    ${prompts.length?`<div style="margin:0 14px 12px;padding:10px 12px;background:var(--bg4);border:1px solid var(--accent);border-radius:8px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div style="color:var(--accent);font-size:12px;font-weight:600;flex:1">❓ Roster changes to confirm</div>
+        ${pendingNew.length>1?`<button ${btn} onclick="answerAllNew()">✓ All ${pendingNew.length} are new</button>`:''}
+      </div>
+      ${prompts.join('')}
     </div>`:''}
     <div class="tscroll"><table class="rtable">
-    <thead><tr><th>#</th><th>PLAYER</th><th>TOTAL</th><th style="color:var(--boss)">BOSS</th><th style="color:var(--clash)">CLASH</th><th>PARTICIPATION</th><th>STATUS</th><th>EXEMPT</th></tr></thead>
+    <thead><tr><th>#</th><th>PLAYER</th><th>TOTAL</th><th style="color:var(--boss)">BOSS</th><th style="color:var(--clash)">CLASH</th><th>PARTICIPATION</th><th>STATUS</th><th>EXEMPT</th><th></th></tr></thead>
     <tbody>`;
   merged.forEach((p,i)=>{
     const rk=i===0?'r1':i===1?'r2':i===2?'r3':'';
@@ -1137,6 +1226,7 @@ function renderResults(){
       <td><div class="${pctClass(pct)}" style="font-size:12px">${p.participated}/${p.totalFights} (${pct}%)</div><div class="pbar"><div class="pbar-f" style="width:${pct}%"></div></div></td>
       <td>${p.noParticipation?'<span class="kflag">⚠ KICK?</span>':'<span style="color:var(--green);font-size:12px">✓ Active</span>'}</td>
       <td><button class="exempt-btn ${p.exempt?'active':''}" onclick="toggleExempt('${esc(p.name).replace(/'/g,"\\'")}')">${p.exempt?'Exempted':'Exempt'}</button></td>
+      <td><button class="rdel" onclick="removeWeekRow(${i})" title="Remove ${esc(p.name)} from this week">✕</button></td>
     </tr>`;
   });
   html+=`</tbody></table></div></div>`;
@@ -1304,14 +1394,18 @@ async function saveWeek(){
 //  ROSTER UI
 // ════════════════════════════════
 function renderRoster(){
-  const c=document.getElementById('roster-chips');
+  const cnt=document.getElementById('wk-roster-count');
+  if(cnt) cnt.textContent=`(${roster.length})`;
+  ['roster-chips','wk-roster-chips'].forEach(id=>{
+  const c=document.getElementById(id);
   if(!c)return;
-  if(!roster.length){c.innerHTML='<div style="color:var(--muted);font-size:12px">No players yet — names are added automatically when you scan, or add them manually.</div>';return;}
+  if(!roster.length){c.innerHTML='<div style="color:var(--muted);font-size:12px">No players yet — confirm new names after a scan, or add them manually.</div>';return;}
   c.innerHTML=roster.slice().sort((a,b)=>a.localeCompare(b)).map(name=>`
     <div class="rchip">
       <span class="rchip-name" onclick="editRosterName(this,'${name.replace(/'/g,"\\'")}')\" title="Click to rename">${esc(name)}</span>
       <button onclick="removeFromRoster('${name.replace(/'/g,"\\'")}')">×</button>
     </div>`).join('');
+  });
 }
 async function editRosterName(el,oldName){
   const span=el;
@@ -1349,16 +1443,23 @@ async function editRosterName(el,oldName){
   inp.addEventListener('blur',commit);
   inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();inp.blur();}if(e.key==='Escape'){inp.value=oldName;inp.blur();}});
 }
-async function addToRoster(){
-  const inp=document.getElementById('roster-input');
+async function addToRoster(inputId){
+  const inp=document.getElementById(inputId||'roster-input');
   const name=inp.value.trim();
   if(!name)return;
   if(!roster.find(r=>r.toLowerCase()===name.toLowerCase())){roster.push(name);await saveRoster();}
+  // Added from the upload page mid-week: count them this week too (at 0 unless
+  // a scan finds them), rather than immediately asking whether they left.
+  if(inputId==='wk-roster-input' && merged.length) addMissingPlayer(name);
   inp.value='';renderRoster();
+  toast(`✓ "${name}" on the roster`,'success');
 }
 async function removeFromRoster(name){
   roster=roster.filter(r=>r!==name);
   await saveRoster();renderRoster();
+  // Off the roster means out of the clan — drop them from this week too, or
+  // the next render would ask whether they're a new player.
+  if(merged.length){removeFromWeek(name);refreshWeek();}
 }
 function toggleBulkRoster(){
   const box=document.getElementById('bulk-roster');
